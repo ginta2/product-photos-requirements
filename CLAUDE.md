@@ -19,21 +19,16 @@ Persuasion artifact for the HelloFresh creative team: document all product-image
 - Serve locally with `python3 -m http.server 8080` from the project root, then open `http://localhost:8080/viewer/`.
 - Test with a real 3:2 recipe photo (1200×800 minimum).
 
-## Git & Deployment
-- **Repo:** `ginta2/product-photos-requirements` on GitHub
+## Git
+- **Repo:** `ginta2/product-photos-requirements` on GitHub (private storage, not deployed)
 - **GitHub CLI:** Use `gh` (authenticated as `ginta2`). This is the user's GitHub account.
-- **Deploy:** Pushing to `main` auto-deploys to GitHub Pages via `.github/workflows/deploy.yml`
-- **Live URL:** https://ginta2.github.io/product-photos-requirements/viewer/
-- **Workflow:** GitHub Actions → `actions/deploy-pages@v4` — deploys the entire repo root as a static site (no build step needed)
+- **No deployment.** The viewer runs locally only (`python3 -m http.server 8080`).
 
 ### Git commands
 ```bash
-# Commit and push (triggers deploy)
+# Commit and push
 git add -A && git commit -m "description" && git push
 
-# Check deploy status
-gh run list --limit 3
-
-# View Pages URL
-gh api repos/ginta2/product-photos-requirements/pages --jq '.html_url'
+# Check repo
+gh repo view ginta2/product-photos-requirements
 ```
