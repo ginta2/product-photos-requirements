@@ -44,14 +44,18 @@
     <div id="filter-bar">
         <div class="tabs" id="platform-tabs">
             <button class="tab active" data-filter="all">All</button>
+            <button class="tab" data-filter="p0">P0 only</button>
             <button class="tab" data-filter="web">Web</button>
             <button class="tab" data-filter="mobile-rn">Mobile</button>
+            <button class="tab" data-filter="ios">iOS</button>
+            <button class="tab" data-filter="portrait">Portrait</button>
         </div>
-        <div class="controls-right hidden" id="controls">
-            <select id="safe-zone">
+        <div class="controls-right" id="controls">
+            <select id="safe-zone" title="Overlay safe zones from the existing PDF guidelines on each crop">
                 <option value="off">Safe zone: Off</option>
                 <option value="conservative">Conservative (200/120px)</option>
                 <option value="usable">Usable (66/60px)</option>
+                <option value="survival">2:3 survival zone (333/0px)</option>
             </select>
             <label class="toggle-label">
                 <input type="checkbox" id="show-labels" checked>

@@ -158,6 +158,56 @@ Run locally: `open viewer/index.html` (or serve via `python3 -m http.server 8080
 
 ---
 
+## Fixed vs. Flexible Dimensions
+
+Several production surfaces have **one dimension locked by code** while the other flexes with viewport or container width. Creative needs to compose with the locked dimension as a hard constraint.
+
+| Surface | Fixed dimension | Flexible dimension | Implication |
+|---|---|---|---|
+| Web Store / Past Orders / Favorites (large) | h = 202px | width 300–680px | Effective ratio drifts ~1.5:1 to ~2.5:1. Subject must survive the worst case (widest viewport). |
+| Web Store / Past Orders / Favorites (small) | h = 120px | width 300–680px | Same drift, smaller frame. |
+| Mobile Menu — preselected (large) | h = 202pt | width = container | Locked-height swimlane card. |
+| Mobile Menu — favourites carousel | h = 240pt | width = container | Same constraint as above. |
+| Mobile Menu — past delivery | h = 240pt | width = container | Same constraint as above. |
+| iOS Recipe Detail header (parallax) | width = full-bleed | height (scroll-driven, 220pt min) | Image stretches/contracts with scroll. Subject must remain centered vertically. |
+| iOS Past Orders Rating v2 | width = floor(2/3 screen) | — | The portrait surface — see "The 2:3 Problem" above. |
+| Mobile Recipe Detail header (rated, full-bleed) | width = full-bleed | height (scroll-driven) | Same as iOS parallax. |
+| Discover Hub — recommendation card | h = 300pt (300h) / 450pt (swipe) | width = full-bleed | Locked height per variant. |
+
+**Why this matters for creative:** "Dynamic" sounds soft. It is not. The pixel height is hard-coded. Composition that depends on a specific aspect ratio (e.g., dramatic wide plating) will fail when the container width changes. Plan for the *narrowest* viewport the surface can render in.
+
+---
+
+## Surface Priority (Traffic Weight)
+
+Not all 30 surfaces matter equally. Focus creative effort accordingly:
+
+| Priority | Description | Surfaces |
+|---|---|---|
+| **P0** | Every active customer sees these in the core menu/cart/cooking flow + new portrait surfaces driving discovery. Optimize first. | My Menu cards (web/iOS/RN), Cart thumbnails, Recipe Detail headers, Discover Hub carousel, Cookbook "Meals from your box", Past Orders Rating v2, Mobile Menu preselected (large + small) |
+| **P1** | Secondary discovery and confirmation contexts. Validate after P0. | Cookbook collections/recently saved/recipe list, Recipe Hub sections, Customization thumbnails, Past Orders Rating v1, Mobile Menu favourites/hub/past delivery |
+| **P2** | Niche, low-traffic, or visually small. Accept default crop behavior unless edge case is severe. | Recipe Ingredient close-ups, Add-on / Food Item Carousel, Founder/Creator profile grid |
+
+**Recommendation:** When evaluating a photo, run it through P0 surfaces first. If it survives those, P1/P2 will mostly look fine. If it fails any P0, reshoot or commission a second variant.
+
+---
+
+## Scope & Known Unknowns
+
+The audit covered: web app, iOS app, shared mobile modules. **Not** covered (parked for v2):
+
+- **Marketing surfaces:** email hero images, push notification thumbnails, share-preview cards, landing pages, paid creatives. Lives in a separate codebase / asset pipeline. Likely uses different aspect ratios.
+- **Cloudinary transform inventory:** what density variants (1x/2x/3x), formats (webp/avif), and quality settings the CDN generates server-side. Confirms creative source resolution is sufficient for retina displays — answer almost certainly yes at 1200×800, but worth a one-line confirmation.
+- **CCM upload pipeline contract:** the formal creative deliverable spec (file format, color profile, naming, max file size). Should be appended once confirmed with the CCM team.
+- **Brand-specific variations:** GreenChef, EveryPlate, Factor, Chef's Plate. Same code paths likely apply but image specs (color profile, naming convention) may differ. Confirm with brand leads if expanding scope.
+- **Locale variations:** DE/UK/AU markets. Same surfaces and crops are expected (shared code), worth a one-line confirmation per locale.
+- **A/B test surfaces:** feature-flagged code paths not in the main bundle. Could include emerging variants of any P0 surface.
+- **Loading / error / empty image states:** shimmer placeholders match surface dimensions but are not photographic.
+- **Accessibility:** alt-text patterns and image-off scenarios. Out of scope for the visual crop pitch, but worth a follow-up with engineering.
+- **Surface analytics / actual traffic data:** the P0/P1/P2 priorities above are informed guesses based on user-flow position. Data team can refine with actual impression counts.
+
+---
+
 ## Out of scope (v2)
 
 - Marketing emails, push notifications, share previews, landing pages, paid creatives
