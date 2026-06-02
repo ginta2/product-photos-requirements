@@ -1,0 +1,13 @@
+{
+  "source": "/Users/mateusz.gietner/Product Photos Requirements/viewer/index.html",
+  "source_type": "file",
+  "platform": "web",
+  "threshold": "balanced",
+  "brand": "hellofresh",
+  "scope": "restyle",
+  "target": "Zest design system light cream theme application",
+  "reference_screen": null,
+  "locale": "us",
+  "created_at": "2026-06-03T00:00:00Z",
+  "name": "crop-viewer"
+}
