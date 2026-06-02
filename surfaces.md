@@ -1,0 +1,50 @@
+# Product Photo Surfaces — Aspect Ratio Inventory
+
+**Source:** Audit of `web`, `ios`, `shared-mobile-modules` repos as of 2026-06-02.
+**Convention:** Ratios written as `W:H`. Portrait ratios noted explicitly. "Dynamic" = ratio depends on container width at runtime.
+**Source baseline:** Creative ships at **3:2, 1200×800 min**.
+**Read this file as data:** the table below is parsed by the viewer at runtime to render crop previews. Keep column order stable.
+
+## Surfaces
+
+| Surface | Platform | Ratio | Resolution (rendered) | Has Label | Label Position | Source |
+|---|---|---|---|---|---|---|
+| My Menu — recipe card (normal) | Web | 16:9 | 768×432 | Yes | Top-right (Customizable meal) | `apps/web/spaces/menus/modules/section/utils/recipe.ts:9-10` |
+| My Menu — recipe card (large) | Web | 3:2 | 1152×768 | Yes | Top-right | `apps/web/spaces/menus/modules/section/utils/recipe.ts:9-10` |
+| Store / Past Orders / Favorites — recipe card | Web | Dynamic (fluid width × fixed height) | h=202px (large), h=120px (small) | Yes | Top-right + bottom-left | `apps/web/features/product-card-feature/constants/constants.ts:11` |
+| Cart — recipe thumbnail | Web | 1:1 | 72×72 (mobile), 90×90 (desktop) | No | — | `apps/web/spaces/deliveries/modules/cart/components/product-item/thumbnail/Thumbnail.tsx` |
+| Product Detail / Recipe Detail | Web | ~2.4:1 (responsive) | 1200×500 desktop, smaller on mobile | Yes | Top-right (close button) | `apps/web/spaces/recipe-detail/modules/main/components/RecipeImage/index.tsx` |
+| Home — Order Management Card | iOS | 1:1 | dynamic | No | — | `RecipesHorizontalCardsTransformer.swift:64` |
+| Home — Recipe List Card (swimlane) | iOS | 1:1 | 68×68pt | No | — | `HomeMyDeliveriesFeature/.../RecipesListView.swift:80` |
+| Weekly Menu — recipe card | iOS | ~1.75:1 (close to 5:3) | ~350×200pt | Yes | Top-right + bottom-left | `SingleWeekFeature/.../RecipeCarouselView.swift:50` |
+| Cart — recipe thumbnail | iOS | 1:1 | 56×56pt | No | — | `EditableOrderSummaryFeature/.../EditableOrderSummaryRecipeView.swift:46` |
+| Customization — recipe thumbnail | iOS | 1:1 | 72×72pt | No | — | `CustomizationAndPairingFeature/.../CustomizationAndPairingDrawerView.swift:92` |
+| Recipe Detail — header (parallax) | iOS | Variable (full-width parallax) | min height 220pt | No | — | `ProductUIComponents/.../ProductHeaderViewDetailsStyle.swift:38` |
+| Past Orders Rating — v1 | iOS | 5:3 | full-width × 200pt | No | — | `UserRatingFeature/.../RecipeCardHeaderView.swift:54` |
+| Past Orders Rating — v2 (new) | iOS | **2:3 portrait** | floor(2/3 screen width) square-ish | No | — | `UserRatingFeature/.../RecipeCardHeaderView.swift:62-63` |
+| Add-on / Food Item Carousel | iOS | ~5:7 (~0.68:0.95) | scales with carousel height | No | — | `FoodItemCarousel/.../FoodItemsCarouselView.swift:74` |
+| Recipe Ingredient thumbnail | iOS | 1:1 | 120×120pt | No | — | `RecipeIngredientCell.swift:63` |
+| Cookbook — "Meals from your box" carousel | Mobile (RN) | **2:3 portrait** | 160w × 240h | Yes | Bottom-right (time pill) | `src/features/this-weeks-box-widget/styles.ts` (`aspectRatio: 2/3`) |
+| Cookbook — Collections grid ("Saved by you") | Mobile (RN) | 1:1 | min 163×163 | Optional | Bottom-left (platform tag) | `src/modules/social-recipe-bridge/components/cookbook-grid-card/styles.ts:11` |
+| Cookbook — Recently Saved carousel | Mobile (RN) | 3:2 landscape | 160×107 | No | — | `src/modules/social-recipe-bridge/components/recently-saved-recipe-card/styles.ts:13` |
+| Cookbook — Recipe list item (collection detail) | Mobile (RN) | 1:1 | ~39% container width | No | — | `src/modules/social-recipe-bridge/screens/collection-detail/components/recipe-list-item/styles.ts:13` |
+| Cookbook — Collection card thumbnail (header) | Mobile (RN) | 2:1 wide | full width × 50% height | No | — | `src/modules/social-recipe-bridge/components/collections/collection-card/styles.ts:10` |
+| Discover Hub — carousel recipe card (Top this week, Highly rated, etc.) | Mobile (RN) | **2:3 portrait** | 164w × 246h | Yes | Top-right (bookmark icon) | `src/features/discovery-hub/recipe-card/constants.ts` |
+| Discover Hub — recommendation card (gradient overlay) | Mobile (RN) | Portrait (variable) | 300h standard / 450h swipe | Yes | Bottom (gradient title overlay) | `src/modules/social-recipe-bridge/components/cookbook-recommendations/recommendation-card/styles.ts` |
+| Recipe Hub — Saved/Recent/Popular sections | Mobile (RN) | 1.56:1 landscape | 200×128 | No | — | `src/modules/recipe-hub/screens/home/section/Section.tsx` |
+| Mobile Menu — "Your meals" preselected card (large) | Mobile (RN) | Dynamic (fluid width × 202h) | h=202 | Yes | Top-left (badge) + bottom-right (cart stepper) | `src/features/product-card-feature/variants/edit/components/EditLargeCard.tsx` (`size={{ height: 202 }}`) |
+| Mobile Menu — "Your meals" preselected card (small / preselections strip) | Mobile (RN) | 1:1 | 140×140 | Yes | Top-left (badge) | `src/features/product-card-feature/variants/edit/components/EditSmallCard.tsx` (`size={{ width: 140, height: 140 }}`) |
+| Mobile Menu — "Your favourite recipes" carousel | Mobile (RN) | Fluid × 240h (favorite variant) | h=240 | Yes | Top-right (+ button) | `src/features/product-card-feature/variants/favorite/constants.ts:CARD_IMAGE_HEIGHT = 240` |
+| Mobile Menu — Hub variant card (small in-row) | Mobile (RN) | 1:1 | 140×140 | Yes | Top-right | `src/features/product-card-feature/variants/hub/components/styles.ts` |
+| Mobile Menu — Past Delivery card | Mobile (RN) | Fluid × 240h | h=240 | Yes | Top-left | `src/features/product-card-feature/variants/past-delivery/constants.ts:CARD_IMAGE_HEIGHT = 240` |
+| Mobile Recipe Detail — header (rated state, full-bleed) | iOS / Mobile (RN) | Variable (full-bleed parallax) | min ~220pt height; visible ~480pt on iPhone | Yes | Top-left (back) + top-right (bookmark) + bottom-left (rating pill) | `ProductHeaderViewDetailsStyle.swift:38` (iOS); RN equivalent in product-card-feature `details` variant |
+| Founder/Creator profile — recipe grid | iOS / Mobile (RN) | 1:1 (visual) | TBD | Yes | Top-right (bookmark) | TBD — code location not confirmed in audit |
+
+## Notes
+
+- **Critical for the creative team:** the surfaces marked **2:3 portrait** in bold are the key pain points. A 3:2 landscape source crops to roughly 44% of its width when forced into 2:3 — the sides are catastrophically lost.
+- **Web responsive caveat:** Web's "Store / Past Orders" surface uses fixed height + fluid width inside a CSS grid (`minmax(300px, 1fr)`). The effective ratio drifts between ~1.5:1 and ~2.5:1 depending on viewport. The viewer represents this with the most common rendered width.
+- **iOS Recipe Detail parallax:** No fixed ratio — the image stretches/compresses with scroll. The viewer skips this surface or shows it at min-height (220pt × full width).
+- **Founder/Creator profile:** confirmed visually in screenshots but not yet pinned to a specific component file. Listed as TBD; will update once located.
+- **Label slots (per existing PDF guidelines):** bottom-left for badges/tags, top-right for nav/customizable indicator. Photos must keep these areas visually clear of subject content.
+- **Safe zones (per existing PDF on 3:2 base):** Conservative 200/120px margin, Usable 66/60px margin. The viewer overlays both on the source preview.
