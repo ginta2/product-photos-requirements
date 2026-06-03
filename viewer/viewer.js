@@ -37,12 +37,11 @@
         'all':       [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: '1280px', width: 1280 }, { label: 'Custom', width: 'custom' }],
         'web':       [{ label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: '1280px', width: 1280 }, { label: '1440px', width: 1440 }, { label: 'Custom', width: 'custom' }],
         'mobile-rn': [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: 'Custom', width: 'custom' }],
-        'ios':       [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: 'Custom', width: 'custom' }],
         'portrait':  [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: 'Custom', width: 'custom' }],
         'p0':        [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: 'Custom', width: 'custom' }],
     };
     const PRESET_DEFAULT_WIDTH = {
-        'all': 390, 'web': 375, 'mobile-rn': 390, 'ios': 390, 'portrait': 390, 'p0': 390
+        'all': 390, 'web': 375, 'mobile-rn': 390, 'portrait': 390, 'p0': 390
     };
 
     function parseSurfacesTable(markdown) {
@@ -97,23 +96,14 @@
 
     function getPlatformKey(platform) {
         if (platform.includes('web')) return 'web';
-        if (platform.includes('android')) return 'mobile-rn';
-        if (platform.includes('rn') || platform.includes('mobile')) return 'mobile-rn';
-        if (platform.includes('ios')) return 'ios';
-        return 'other';
+        return 'mobile-rn';
     }
 
     function getPlatformBadges(platform) {
         const raw = platform.toLowerCase();
-        if (raw.includes('ios') && (raw.includes('rn') || raw.includes('mobile') || raw.includes('android'))) {
-            return '<span class="empty-platform">iOS / Android</span>';
-        }
-        return platform.split('/').map(function (p) {
-            p = p.trim();
-            var key = getPlatformKey(p.toLowerCase());
-            var label = key === 'mobile-rn' ? 'iOS / Android' : key === 'ios' ? 'iOS' : key === 'web' ? 'Web' : p;
-            return '<span class="empty-platform">' + label + '</span>';
-        }).join(' ');
+        var key = getPlatformKey(raw);
+        var label = key === 'web' ? 'Web' : 'Mobile';
+        return '<span class="empty-platform">' + label + '</span>';
     }
 
     function isPortrait(ratio) {
