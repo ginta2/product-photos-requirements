@@ -299,6 +299,28 @@ select {
     font-size: 0.8rem;
 }
 
+.view-toggle {
+    display: flex;
+    border: 1px solid var(--color-elevation-border-divider);
+    border-radius: var(--radius-small);
+    overflow: hidden;
+}
+
+.view-toggle-btn {
+    background: transparent;
+    border: none;
+    padding: 0.4rem 0.55rem;
+    color: var(--color-foreground-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.view-toggle-btn:hover { color: var(--color-foreground-primary); background: var(--color-elevation-level2); }
+.view-toggle-btn.active { background: var(--color-interactive-background-primary); color: var(--color-foreground-inverse); }
+.view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--color-elevation-border-divider); }
+
 .toggle-label {
     display: flex;
     align-items: center;
@@ -549,16 +571,19 @@ select {
 }
 
 #empty-tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
+    align-items: stretch;
 }
 
 .empty-card {
+    display: flex;
+    flex-direction: column;
     background: var(--color-elevation-background-card);
     border: none;
     border-radius: var(--radius-card);
-    padding: 0.6rem;
+    padding: 1rem;
     transition: background 0.15s;
 }
 
@@ -586,22 +611,46 @@ select {
 }
 
 .empty-label {
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
     font-size: 0.75rem;
     color: var(--color-foreground-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.empty-label-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-foreground-primary);
+    line-height: 1.3;
+}
+
+.empty-label-ratio {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--color-foreground-secondary);
+    white-space: nowrap;
+}
+
+.empty-label-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
 }
 
 .empty-label .empty-platform {
     display: inline-block;
     background: var(--color-elevation-level2);
     border-radius: 3px;
-    padding: 0.1rem 0.3rem;
-    font-size: 0.55rem;
-    margin-left: 0.25rem;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.65rem;
     vertical-align: middle;
     color: var(--color-foreground-secondary);
 }
@@ -740,9 +789,9 @@ select {
 /* Crop-loss inline pill in specs table */
 .loss-badge-inline {
     display: inline-block;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 0.1rem 0.4rem;
+    padding: 0.15rem 0.45rem;
     border-radius: var(--radius-xs);
     color: var(--color-foreground-inverse);
 }
@@ -800,15 +849,16 @@ select {
 }
 .empty-dim-chips {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-top: 0.35rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
 }
 .dim-chip {
     display: inline-block;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 600;
-    padding: 0.15rem 0.4rem;
+    padding: 0.15rem 0.45rem;
     border-radius: var(--radius-xs);
     line-height: 1.3;
     white-space: nowrap;

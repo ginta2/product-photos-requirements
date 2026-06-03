@@ -32,6 +32,7 @@
     let activeFilter = 'all';
     let specsFilter = 'all';
     let deviceWidth = 390;
+    let simView = 'list'; // 'grid' | 'list'
 
     const DEVICE_PRESETS = {
         'all':       [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: '1280px', width: 1280 }, { label: 'Custom', width: 'custom' }],
@@ -146,6 +147,7 @@
 
     function applyFilter(arr) {
         return arr.filter(s => {
+            if (s.name === 'Past Orders Rating — v2 (new)') return false;
             if (activeFilter === 'all') return true;
             if (activeFilter === 'p0') return s.priority === 'P0';
             if (activeFilter === 'portrait') return isPortrait(s.ratio);
@@ -212,7 +214,11 @@
         if (bpMatch) {
             var bpSmall = parseInt(bpMatch[1]);
             var bpLarge = parseInt(bpMatch[2]);
-            return deviceWidth >= 768 ? 280 : Math.round((bpSmall / bpLarge) * 280);
+            // Use a fixed small display size so the card stays full-width but the
+            // image is visibly smaller than a full recipe card, communicating its true thumbnail scale.
+            var displayLarge = 100;
+            var displaySmall = Math.round((bpSmall / bpLarge) * displayLarge);
+            return deviceWidth >= 768 ? displayLarge : displaySmall;
         }
         var flexWidthRelative = fl === 'width=container' || fl === 'width=full-bleed' || fl.startsWith('both') || parseFlexRange(surface.flexDim);
         var fixedWidthRelative = fd === 'width=full-bleed' || fd.includes('screen');
@@ -431,7 +437,7 @@
     });
 
     function renderTiles() {
-        if (!imageUrl || surfaces.length === 0) return;
+        if (surfaces.length === 0) return;
 
         const showLabels = showLabelsCheckbox.checked;
         tilesContainer.innerHTML = '';
@@ -451,7 +457,7 @@
             imgContainer.style.paddingBottom = (1 / surface.ratio * 100) + '%';
 
             const img = document.createElement('img');
-            img.src = imageUrl;
+            img.src = imageUrl || DEMO_IMAGE;
             img.alt = surface.name;
             imgContainer.appendChild(img);
 
@@ -488,22 +494,21 @@
                 ? '<span class="badge-journey">' + surface.journey + '</span>'
                 : '';
 
+            const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
             meta.innerHTML = `
-                <div class="surface-name">${surface.name}${portraitBadge}</div>
-                <div class="surface-details">
-                    <span>${getPlatformBadges(surface.platform)}</span>
-                    <span>${surface.ratioRaw.replace(/\*\*/g, '')}</span>
-                    <span>${surface.resolution}</span>
-                    ${journeyBadge}
+                <div class="empty-label-name">${truncName}${portraitBadge}
+                    <span class="empty-label-ratio">${formatRatio(surface.ratio)}</span>
+                </div>
+                <div class="empty-label-meta">
+                    ${getPlatformBadges(surface.platform)}
                     <span class="loss-badge-inline loss-${lossSeverity(pct)}">${pct}% width</span>
                 </div>
             `;
 
-            // Chips live in meta so they don't overflow a narrow image wrapper
             const chips = getDimChips(surface);
             if (chips.length > 0) {
                 const chipRow = document.createElement('div');
-                chipRow.className = 'dim-chips';
+                chipRow.className = 'empty-dim-chips';
                 chips.forEach(c => {
                     const chip = document.createElement('span');
                     chip.className = 'dim-chip dim-chip-' + c.kind;
@@ -546,17 +551,14 @@
             card.className = 'empty-card';
 
             const tileW = getTileWidth(surface);
-            if (tileW < 280) {
-                card.style.width = Math.round((tileW / 280) * 100) + '%';
-                card.style.justifySelf = 'start';
-            }
 
             const shape = document.createElement('div');
             shape.className = 'empty-shape';
-            shape.style.paddingBottom = (1 / surface.ratio * 100) + '%';
+            shape.style.width = tileW + 'px';
+            shape.style.aspectRatio = surface.ratio;
 
             const img = document.createElement('img');
-            img.src = DEMO_IMAGE;
+            img.src = imageUrl || DEMO_IMAGE;
             img.alt = surface.name;
             shape.appendChild(img);
 
@@ -572,22 +574,19 @@
                 shape.appendChild(safeRect);
             }
 
-            // Label slots — render in empty state too (G5)
-            if (showLabels && surface.hasLabel && surface.labelPosition !== '—') {
-                const positions = surface.labelPosition.toLowerCase();
-                if (positions.includes('top-right')) shape.appendChild(createLabelSlot('top-right', ''));
-                if (positions.includes('top-left')) shape.appendChild(createLabelSlot('top-left', ''));
-                if (positions.includes('bottom-left')) shape.appendChild(createLabelSlot('bottom-left', ''));
-                if (positions.includes('bottom-right')) shape.appendChild(createLabelSlot('bottom-right', ''));
-            }
 
             const pct = widthVisiblePct(surface.ratio);
 
             const label = document.createElement('div');
             label.className = 'empty-label';
 
-            label.innerHTML = surface.name + ' ' + getPlatformBadges(surface.platform)
-                + '<br><span class="loss-badge-inline loss-' + lossSeverity(pct) + '" style="margin-top:0.3rem;display:inline-block">' + pct + '% width</span>';
+            const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
+            label.innerHTML = '<span class="empty-label-name">' + truncName
+                    + ' <span class="empty-label-ratio">' + formatRatio(surface.ratio) + '</span></span>'
+                + '<span class="empty-label-meta">'
+                + getPlatformBadges(surface.platform)
+                + '<span class="loss-badge-inline loss-' + lossSeverity(pct) + '">' + pct + '% width</span>'
+                + '</span>';
 
             // Fixed/flex chips below the label
             const chips = getDimChips(surface);
@@ -699,6 +698,22 @@
         container.innerHTML = html;
     }
 
+    function applySimView() {
+        const viewToggle = document.getElementById('view-toggle');
+        if (viewToggle) {
+            viewToggle.querySelectorAll('.view-toggle-btn').forEach(function (btn) {
+                btn.classList.toggle('active', btn.dataset.view === simView);
+            });
+        }
+        if (simView === 'list') {
+            gallery.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+        } else {
+            emptyState.classList.remove('hidden');
+            gallery.classList.add('hidden');
+        }
+    }
+
     function handleImage(file) {
         if (!file || !file.type.startsWith('image/')) return;
 
@@ -706,10 +721,10 @@
         reader.onload = function (e) {
             imageUrl = e.target.result;
             closeModal();
-            emptyState.classList.add('hidden');
-            gallery.classList.remove('hidden');
             controls.classList.remove('hidden');
+            applySimView();
             renderTiles();
+            renderEmptyState();
             updateContextImages();
         };
         reader.readAsDataURL(file);
@@ -721,6 +736,17 @@
 
     function closeModal() {
         modalOverlay.classList.add('hidden');
+    }
+
+    // View toggle (grid / list)
+    const viewToggleEl = document.getElementById('view-toggle');
+    if (viewToggleEl) {
+        viewToggleEl.addEventListener('click', function (e) {
+            const btn = e.target.closest('.view-toggle-btn');
+            if (!btn) return;
+            simView = btn.dataset.view;
+            applySimView();
+        });
     }
 
     // Modal events
@@ -886,13 +912,17 @@
         .then(r => r.text())
         .then(md => {
             surfaces = parseSurfacesTable(md);
+            applySimView();
             renderEmptyState();
+            renderTiles();
             renderSpecsTable();
             updateContextImages();
         })
         .catch(() => {
             surfaces = getFallbackSurfaces();
+            applySimView();
             renderEmptyState();
+            renderTiles();
             renderSpecsTable();
             updateContextImages();
         });
