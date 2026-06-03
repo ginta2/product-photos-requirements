@@ -31,6 +31,19 @@
     let imageUrl = null;
     let activeFilter = 'all';
     let specsFilter = 'all';
+    let deviceWidth = 390;
+
+    const DEVICE_PRESETS = {
+        'all':       [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: '1280px', width: 1280 }, { label: 'Custom', width: 'custom' }],
+        'web':       [{ label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: '1280px', width: 1280 }, { label: '1440px', width: 1440 }, { label: 'Custom', width: 'custom' }],
+        'mobile-rn': [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: 'Custom', width: 'custom' }],
+        'ios':       [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: 'Custom', width: 'custom' }],
+        'portrait':  [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: 'Custom', width: 'custom' }],
+        'p0':        [{ label: 'SE', width: 320 }, { label: '14', width: 390 }, { label: '16 Pro', width: 430 }, { label: '375px', width: 375 }, { label: '768px', width: 768 }, { label: 'Custom', width: 'custom' }],
+    };
+    const PRESET_DEFAULT_WIDTH = {
+        'all': 390, 'web': 375, 'mobile-rn': 390, 'ios': 390, 'portrait': 390, 'p0': 390
+    };
 
     function parseSurfacesTable(markdown) {
         const lines = markdown.split('\n');
@@ -87,6 +100,15 @@
         if (platform.includes('ios')) return 'ios';
         if (platform.includes('rn') || platform.includes('mobile')) return 'mobile-rn';
         return 'other';
+    }
+
+    function getPlatformBadges(platform) {
+        return platform.split('/').map(function (p) {
+            p = p.trim();
+            var key = getPlatformKey(p.toLowerCase());
+            var label = key === 'mobile-rn' ? 'Mobile' : key === 'ios' ? 'iOS' : key === 'web' ? 'Web' : p;
+            return '<span class="empty-platform">' + label + '</span>';
+        }).join('');
     }
 
     function isPortrait(ratio) {
@@ -158,10 +180,19 @@
 
     function computeRatioRange(surface) {
         var range = parseFlexRange(surface.flexDim);
-        if (!range) return null;
+        if (!range) {
+            var fl = (surface.flexDim || '').toLowerCase();
+            if (fl === 'width=container' || fl === 'width=full-bleed') {
+                var h2 = parseFixedHeight(surface.fixedDim);
+                if (!h2) return null;
+                var r = deviceWidth / h2;
+                return { min: r, max: r, single: true };
+            }
+            return null;
+        }
         var h = parseFixedHeight(surface.fixedDim);
         if (!h) return null;
-        return { min: range.min / h, max: range.max / h };
+        return { min: range.min / h, max: range.max / h, single: false };
     }
 
     function formatRatio(r) {
@@ -170,13 +201,41 @@
         return s + ':1';
     }
 
+    function getTileWidth(surface) {
+        var fd = (surface.fixedDim || '').toLowerCase();
+        var fl = (surface.flexDim || '').toLowerCase();
+        if (fd === 'both') return 280;
+        // Scale if either dimension is container/screen-relative:
+        //   - fl matches explicit flexible-width patterns (including 'both (carousel)' variants)
+        //   - fd is full-bleed (width locked to device, e.g. parallax headers)
+        //   - fd references screen width (e.g. 'width=2/3 screen')
+        //   - flexDim carries a numeric range (e.g. '300–680px')
+        // Breakpoint-snap: flexDim encodes two fixed sizes at breakpoints (e.g. '72–90px (breakpoints)')
+        // Breakpoint-snap: normalize so the larger breakpoint = 280 display px,
+        // smaller = proportionally reduced. Avoids rendering literal tiny px values.
+        var bpMatch = fl.match(/(\d+)[–\-](\d+)px.*breakpoint/i);
+        if (bpMatch) {
+            var bpSmall = parseInt(bpMatch[1]);
+            var bpLarge = parseInt(bpMatch[2]);
+            return deviceWidth >= 500 ? 280 : Math.round((bpSmall / bpLarge) * 280);
+        }
+        var flexWidthRelative = fl === 'width=container' || fl === 'width=full-bleed' || fl.startsWith('both') || parseFlexRange(surface.flexDim);
+        var fixedWidthRelative = fd === 'width=full-bleed' || fd.includes('screen');
+        if (flexWidthRelative || fixedWidthRelative) {
+            // Scale relative to platform max: mobile max=430pt, web max=1440px
+            var maxRef = deviceWidth >= 500 ? 1440 : 430;
+            return Math.min(280, Math.round((deviceWidth / maxRef) * 280));
+        }
+        return 280;
+    }
+
     function getDimChips(surface) {
         const chips = [];
         const fixed = (surface.fixedDim || '').toLowerCase();
         const flex = (surface.flexDim || '').toLowerCase();
         const isBothFixed = fixed === 'both';
         const isBothFlex = flex === 'both';
-        if (isBothFixed) return [];
+        if (isBothFixed) return [{ kind: 'fixed', text: 'Fixed px' }];
         if (fixed && fixed !== '—' && fixed !== 'both') {
             chips.push({ kind: 'fixed', text: surface.fixedDim });
         }
@@ -243,8 +302,7 @@
         const pct = widthVisiblePct(surface.ratio);
         const severity = lossSeverity(pct);
         const chips = getDimChips(surface);
-        const platformKey = getPlatformKey(surface.platform);
-        const platformLabel = platformKey === 'mobile-rn' ? 'Mobile (React Native)' : platformKey === 'ios' ? 'iOS' : 'Web';
+        const platformLabel = getPlatformBadges(surface.platform);
         const ratioClean = surface.ratioRaw.replace(/\*\*/g, '');
         const portrait = isPortrait(surface.ratio);
         const imgSrc = imageUrl || DEMO_IMAGE;
@@ -391,6 +449,7 @@
 
             const imageWrapper = document.createElement('div');
             imageWrapper.className = 'tile-image-wrapper';
+            imageWrapper.style.width = getTileWidth(surface) + 'px';
 
             const imgContainer = document.createElement('div');
             imgContainer.className = 'tile-image-container';
@@ -451,7 +510,7 @@
             meta.innerHTML = `
                 <div class="surface-name">${surface.name}${portraitBadge}</div>
                 <div class="surface-details">
-                    <span>${surface.platform}</span>
+                    <span>${getPlatformBadges(surface.platform)}</span>
                     <span>${surface.ratioRaw.replace(/\*\*/g, '')}</span>
                     <span>${surface.resolution}</span>
                     ${journeyBadge}
@@ -491,6 +550,12 @@
             const card = document.createElement('div');
             card.className = 'empty-card';
 
+            const tileW = getTileWidth(surface);
+            if (tileW < 280) {
+                card.style.width = Math.round((tileW / 280) * 100) + '%';
+                card.style.justifySelf = 'start';
+            }
+
             const shape = document.createElement('div');
             shape.className = 'empty-shape';
             shape.style.paddingBottom = (1 / surface.ratio * 100) + '%';
@@ -526,10 +591,7 @@
             const label = document.createElement('div');
             label.className = 'empty-label';
 
-            const platformKey = getPlatformKey(surface.platform);
-            const platformLabel = platformKey === 'mobile-rn' ? 'Mobile' : platformKey === 'ios' ? 'iOS' : 'Web';
-
-            label.innerHTML = surface.name + ' <span class="empty-platform">' + platformLabel + '</span>'
+            label.innerHTML = surface.name + ' ' + getPlatformBadges(surface.platform)
                 + '<br><span class="loss-badge-inline loss-' + lossSeverity(pct) + '" style="margin-top:0.3rem;display:inline-block">' + pct + '% width</span>';
 
             // Fixed/flex chips below the label
@@ -601,8 +663,6 @@
 
             const priority = surface.priority || '—';
             const priorityClass = priority !== '—' ? 'badge-' + priority.toLowerCase() : '';
-            const fixedDim = surface.fixedDim || '—';
-            const flexDim = surface.flexDim || '—';
             const journey = surface.journey || '—';
 
             html += '<tr>';
@@ -611,11 +671,25 @@
             html += '<td>' + journey + '</td>';
             html += '<td>' + ratioClean + '</td>';
             html += '<td><span class="loss-badge-inline ' + lossClass + '">' + pct + '%</span></td>';
-            html += '<td>' + fixedDim + '</td>';
-            html += '<td>' + flexDim + '</td>';
+            const chips = getDimChips(surface);
+            const bpMatch = (surface.flexDim || '').match(/(\d+)[–\-](\d+)(px|pt).*breakpoint/i);
+            const fixedChips = chips.filter(c => c.kind === 'fixed');
+            const flexChips  = chips.filter(c => c.kind === 'flex');
+            const fixedHtml = fixedChips.length
+                ? fixedChips.map(c => '<span class="dim-chip dim-chip-fixed">' + c.text + '</span>').join(' ')
+                : '<span style="color:var(--color-foreground-secondary);font-size:0.7rem">—</span>';
+            let flexHtml = flexChips.length
+                ? flexChips.map(c => '<span class="dim-chip dim-chip-flex">' + c.text + '</span>').join(' ')
+                : '<span style="color:var(--color-foreground-secondary);font-size:0.7rem">—</span>';
+            if (bpMatch) {
+                flexHtml = '<span class="dim-chip dim-chip-fixed">' + bpMatch[1] + bpMatch[3] + ' &lt;768px</span>'
+                         + ' <span class="dim-chip dim-chip-fixed">' + bpMatch[2] + bpMatch[3] + ' ≥768px</span>';
+            }
+            html += '<td>' + fixedHtml + '</td>';
+            html += '<td>' + flexHtml + '</td>';
             var ratioRange = computeRatioRange(surface);
             var ratioRangeText = ratioRange
-                ? formatRatio(ratioRange.min) + ' – ' + formatRatio(ratioRange.max)
+                ? (ratioRange.single ? formatRatio(ratioRange.min) : formatRatio(ratioRange.min) + ' – ' + formatRatio(ratioRange.max))
                 : '—';
             html += '<td class="spec-range">' + ratioRangeText + '</td>';
             html += '<td>' + surface.resolution + '</td>';
@@ -685,6 +759,7 @@
         platformTabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         activeFilter = tab.dataset.filter;
+        renderDeviceChips(activeFilter);
         if (imageUrl) {
             renderTiles();
         } else {
@@ -738,6 +813,68 @@
             renderSpecsTable();
         });
     }
+
+    const deviceSelector = document.getElementById('device-selector');
+    const deviceChipsContainer = document.getElementById('device-chips');
+    const deviceCustomInput = document.getElementById('device-custom-input');
+    const specsDeviceIndicator = document.getElementById('specs-device-indicator');
+
+    function setDeviceWidth(w) {
+        deviceWidth = w;
+        var unit = w >= 500 ? 'px' : 'pt';
+        if (specsDeviceIndicator) specsDeviceIndicator.textContent = '@ ' + w + unit;
+        renderEmptyState();
+        renderTiles();
+        renderSpecsTable();
+    }
+
+    function renderDeviceChips(platformFilter) {
+        if (!deviceChipsContainer) return;
+        var presets = DEVICE_PRESETS[platformFilter] || DEVICE_PRESETS['all'];
+        var defaultWidth = PRESET_DEFAULT_WIDTH[platformFilter] || 390;
+
+        // If current deviceWidth isn't in the new preset list, reset to default
+        var widths = presets.filter(p => p.width !== 'custom').map(p => p.width);
+        var useWidth = widths.includes(deviceWidth) ? deviceWidth : defaultWidth;
+
+        deviceChipsContainer.innerHTML = '';
+        presets.forEach(function (preset) {
+            var btn = document.createElement('button');
+            btn.className = 'device-chip';
+            btn.dataset.width = preset.width;
+            btn.textContent = preset.label;
+            if (preset.width === useWidth) btn.classList.add('active');
+            deviceChipsContainer.appendChild(btn);
+        });
+
+        if (deviceCustomInput) deviceCustomInput.classList.add('hidden');
+        if (useWidth !== deviceWidth) setDeviceWidth(useWidth);
+    }
+
+    if (deviceSelector) {
+        deviceSelector.addEventListener('click', function (e) {
+            var chip = e.target.closest('.device-chip');
+            if (!chip) return;
+            deviceSelector.querySelectorAll('.device-chip').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            if (chip.dataset.width === 'custom') {
+                deviceCustomInput.classList.remove('hidden');
+                deviceCustomInput.focus();
+            } else {
+                deviceCustomInput.classList.add('hidden');
+                setDeviceWidth(parseInt(chip.dataset.width));
+            }
+        });
+        if (deviceCustomInput) {
+            deviceCustomInput.addEventListener('change', function () {
+                var v = parseInt(deviceCustomInput.value);
+                if (!isNaN(v) && v >= 280 && v <= 2560) setDeviceWidth(v);
+            });
+        }
+    }
+
+    // Initial chip render
+    renderDeviceChips('all');
 
     function updateContextImages() {
         var src = imageUrl || DEMO_IMAGE;
