@@ -97,18 +97,23 @@
 
     function getPlatformKey(platform) {
         if (platform.includes('web')) return 'web';
-        if (platform.includes('ios')) return 'ios';
+        if (platform.includes('android')) return 'mobile-rn';
         if (platform.includes('rn') || platform.includes('mobile')) return 'mobile-rn';
+        if (platform.includes('ios')) return 'ios';
         return 'other';
     }
 
     function getPlatformBadges(platform) {
+        const raw = platform.toLowerCase();
+        if (raw.includes('ios') && (raw.includes('rn') || raw.includes('mobile') || raw.includes('android'))) {
+            return '<span class="empty-platform">iOS / Android</span>';
+        }
         return platform.split('/').map(function (p) {
             p = p.trim();
             var key = getPlatformKey(p.toLowerCase());
-            var label = key === 'mobile-rn' ? 'Mobile' : key === 'ios' ? 'iOS' : key === 'web' ? 'Web' : p;
+            var label = key === 'mobile-rn' ? 'iOS / Android' : key === 'ios' ? 'iOS' : key === 'web' ? 'Web' : p;
             return '<span class="empty-platform">' + label + '</span>';
-        }).join('');
+        }).join(' ');
     }
 
     function isPortrait(ratio) {
@@ -154,7 +159,7 @@
             if (activeFilter === 'all') return true;
             if (activeFilter === 'p0') return s.priority === 'P0';
             if (activeFilter === 'portrait') return isPortrait(s.ratio);
-            return getPlatformKey(s.platform) === activeFilter;
+            return s.platform.split('/').some(p => getPlatformKey(p.trim().toLowerCase()) === activeFilter);
         });
     }
 
@@ -202,7 +207,6 @@
     }
 
     function getTileWidth(surface) {
-        if (activeFilter === 'all') return 280;
         var fd = (surface.fixedDim || '').toLowerCase();
         var fl = (surface.flexDim || '').toLowerCase();
         if (fd === 'both') return 280;
@@ -218,7 +222,7 @@
         if (bpMatch) {
             var bpSmall = parseInt(bpMatch[1]);
             var bpLarge = parseInt(bpMatch[2]);
-            return deviceWidth >= 500 ? 280 : Math.round((bpSmall / bpLarge) * 280);
+            return deviceWidth >= 768 ? 280 : Math.round((bpSmall / bpLarge) * 280);
         }
         var flexWidthRelative = fl === 'width=container' || fl === 'width=full-bleed' || fl.startsWith('both') || parseFlexRange(surface.flexDim);
         var fixedWidthRelative = fd === 'width=full-bleed' || fd.includes('screen');
@@ -629,7 +633,7 @@
         const filtered = sortByPriority(surfaces.filter(function (s) {
             if (filterToUse === 'all') return true;
             if (filterToUse === 'portrait') return isPortrait(s.ratio);
-            return getPlatformKey(s.platform) === filterToUse;
+            return s.platform.split('/').some(function (p) { return getPlatformKey(p.trim().toLowerCase()) === filterToUse; });
         }));
 
         let html = '<table class="specs"><thead><tr>';
@@ -832,9 +836,9 @@
     }
 
     function renderDeviceChips(platformFilter) {
-        if (!deviceChipsContainer) return;
         var subBar = document.getElementById('device-sub-bar');
         if (subBar) subBar.classList.toggle('hidden', platformFilter === 'all');
+        if (!deviceChipsContainer) return;
         var presets = DEVICE_PRESETS[platformFilter] || DEVICE_PRESETS['all'];
         var defaultWidth = PRESET_DEFAULT_WIDTH[platformFilter] || 390;
 
