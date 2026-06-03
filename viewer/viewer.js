@@ -13,7 +13,6 @@
     const platformTabs = document.getElementById('platform-tabs');
     const safeZoneSelect = document.getElementById('safe-zone');
     const showLabelsCheckbox = document.getElementById('show-labels');
-    const filterBar = document.getElementById('filter-bar');
 
     const DEMO_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200&h=800&fit=crop';
 
@@ -21,9 +20,17 @@
     const detailContent = document.getElementById('detail-content');
     const detailClose = document.getElementById('detail-close');
 
+    // Navigation
+    const mainNav = document.getElementById('main-nav');
+    const viewSimulator = document.getElementById('view-simulator');
+    const viewSpecs = document.getElementById('view-specs');
+    const viewContext = document.getElementById('view-context');
+    const specsTabs = document.getElementById('specs-tabs');
+
     let surfaces = [];
     let imageUrl = null;
     let activeFilter = 'all';
+    let specsFilter = 'all';
 
     function parseSurfacesTable(markdown) {
         const lines = markdown.split('\n');
@@ -134,6 +141,35 @@
      * Used to overlay 🔒 / ↔ badges on tiles. Returns [] for fully-fixed tiles
      * (no chips needed since both dims are locked).
      */
+    function parseFlexRange(flexDim) {
+        if (!flexDim || flexDim === '—' || flexDim === 'both') return null;
+        var rangeMatch = flexDim.match(/(\d+)\s*[–\-]\s*(\d+)\s*(px|pt)/);
+        if (rangeMatch) {
+            return { min: parseInt(rangeMatch[1]), max: parseInt(rangeMatch[2]), unit: rangeMatch[3] };
+        }
+        return null;
+    }
+
+    function parseFixedHeight(fixedDim) {
+        if (!fixedDim || fixedDim === '—' || fixedDim === 'both') return null;
+        var m = fixedDim.match(/h=(\d+)(px|pt)/);
+        return m ? parseInt(m[1]) : null;
+    }
+
+    function computeRatioRange(surface) {
+        var range = parseFlexRange(surface.flexDim);
+        if (!range) return null;
+        var h = parseFixedHeight(surface.fixedDim);
+        if (!h) return null;
+        return { min: range.min / h, max: range.max / h };
+    }
+
+    function formatRatio(r) {
+        var s = r.toFixed(2);
+        s = s.replace(/\.?0+$/, '');
+        return s + ':1';
+    }
+
     function getDimChips(surface) {
         const chips = [];
         const fixed = (surface.fixedDim || '').toLowerCase();
@@ -225,6 +261,9 @@
             safeZoneNotes.push('Full source width is visible. Height may be cropped for very wide ratios.');
         }
 
+        const range = parseFlexRange(surface.flexDim);
+        const rangeHtml = range ? range.min + range.unit + ' – ' + range.max + range.unit : null;
+
         const fixedFlexHtml = chips.length > 0
             ? chips.map(c => '<span class="dim-chip dim-chip-' + c.kind + '">' + (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text + '</span>').join(' ')
             : '<span class="detail-value">Both dimensions fixed</span>';
@@ -265,6 +304,7 @@
                         <dt>Resolution</dt><dd>${surface.resolution}</dd>
                         <dt>Fixed dimension</dt><dd>${fixedFlexHtml}</dd>
                         ${chips.length > 0 ? '<dt>Flexible dimension</dt><dd>' + chips.filter(c => c.kind === 'flex').map(c => c.text).join(', ') + '</dd>' : ''}
+                        ${rangeHtml ? '<dt>Width range</dt><dd class="spec-range">' + rangeHtml + '</dd>' : ''}
                     </dl>
                 </div>
 
@@ -522,7 +562,12 @@
         const container = document.getElementById('specs-table');
         if (!container || surfaces.length === 0) return;
 
-        const filtered = sortByPriority(applyFilter(surfaces));
+        const filterToUse = specsFilter || activeFilter;
+        const filtered = sortByPriority(surfaces.filter(function (s) {
+            if (filterToUse === 'all') return true;
+            if (filterToUse === 'portrait') return isPortrait(s.ratio);
+            return getPlatformKey(s.platform) === filterToUse;
+        }));
 
         let html = '<table class="specs"><thead><tr>';
         html += '<th>Preview</th>';
@@ -532,6 +577,7 @@
         html += '<th>Width visible</th>';
         html += '<th>Fixed dimension</th>';
         html += '<th>Flexible dimension</th>';
+        html += '<th>Ratio range</th>';
         html += '<th>Supported Sizes</th>';
         html += '<th>Crop Mode</th>';
         html += '<th>Labels / Notes</th>';
@@ -567,6 +613,11 @@
             html += '<td><span class="loss-badge-inline ' + lossClass + '">' + pct + '%</span></td>';
             html += '<td>' + fixedDim + '</td>';
             html += '<td>' + flexDim + '</td>';
+            var ratioRange = computeRatioRange(surface);
+            var ratioRangeText = ratioRange
+                ? formatRatio(ratioRange.min) + ' – ' + formatRatio(ratioRange.max)
+                : '—';
+            html += '<td class="spec-range">' + ratioRangeText + '</td>';
             html += '<td>' + surface.resolution + '</td>';
             html += '<td>Center crop</td>';
             html += '<td>' + labelAndNotes + '</td>';
@@ -588,6 +639,7 @@
             gallery.classList.remove('hidden');
             controls.classList.remove('hidden');
             renderTiles();
+            updateContextImages();
         };
         reader.readAsDataURL(file);
     }
@@ -661,6 +713,38 @@
         }
     });
 
+    // Main navigation
+    mainNav.addEventListener('click', function (e) {
+        var tab = e.target.closest('.nav-tab');
+        if (!tab) return;
+        mainNav.querySelectorAll('.nav-tab').forEach(function (t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        var view = tab.dataset.view;
+        viewSimulator.classList.toggle('hidden', view !== 'simulator');
+        viewSpecs.classList.toggle('hidden', view !== 'specs');
+        viewContext.classList.toggle('hidden', view !== 'context');
+        if (view === 'context') updateContextImages();
+        if (view === 'specs') renderSpecsTable();
+    });
+
+    // Specs view filter tabs
+    if (specsTabs) {
+        specsTabs.addEventListener('click', function (e) {
+            var tab = e.target.closest('.tab');
+            if (!tab) return;
+            specsTabs.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            specsFilter = tab.dataset.filter;
+            renderSpecsTable();
+        });
+    }
+
+    function updateContextImages() {
+        var src = imageUrl || DEMO_IMAGE;
+        var imgs = viewContext.querySelectorAll('.context-img');
+        imgs.forEach(function (img) { img.src = src; });
+    }
+
     // Load surfaces
     fetch(SURFACES_PATH)
         .then(r => r.text())
@@ -668,11 +752,13 @@
             surfaces = parseSurfacesTable(md);
             renderEmptyState();
             renderSpecsTable();
+            updateContextImages();
         })
         .catch(() => {
             surfaces = getFallbackSurfaces();
             renderEmptyState();
             renderSpecsTable();
+            updateContextImages();
         });
 
     function getFallbackSurfaces() {

@@ -24,6 +24,12 @@
         <button id="upload-btn" class="btn-upload">Upload Photo</button>
     </header>
 
+    <nav id="main-nav">
+        <button class="nav-tab active" data-view="simulator">Simulator</button>
+        <button class="nav-tab" data-view="specs">Specs</button>
+        <button class="nav-tab" data-view="context">Photo Context</button>
+    </nav>
+
     <div id="modal-overlay" class="hidden">
         <div id="upload-modal">
             <button id="modal-close">&times;</button>
@@ -48,39 +54,473 @@
         </div>
     </div>
 
-    <div id="filter-bar">
-        <div class="tabs" id="platform-tabs">
-            <button class="tab active" data-filter="all">All</button>
-            <button class="tab" data-filter="web">Web</button>
-            <button class="tab" data-filter="mobile-rn">Mobile</button>
-            <button class="tab" data-filter="ios">iOS</button>
+    <!-- VIEW: Simulator -->
+    <section id="view-simulator">
+        <div id="filter-bar">
+            <div class="tabs" id="platform-tabs">
+                <button class="tab active" data-filter="all">All</button>
+                <button class="tab" data-filter="web">Web</button>
+                <button class="tab" data-filter="mobile-rn">Mobile</button>
+                <button class="tab" data-filter="ios">iOS</button>
+            </div>
+            <div class="controls-right" id="controls">
+                <select id="safe-zone" title="Overlay safe zones from the existing PDF guidelines on each crop">
+                    <option value="off">Safe zone: Off</option>
+                    <option value="conservative">Conservative (200/120px)</option>
+                    <option value="usable">Usable (66/60px)</option>
+                    <option value="survival">2:3 survival zone (333/0px)</option>
+                </select>
+                <label class="toggle-label">
+                    <input type="checkbox" id="show-labels" checked>
+                    <span>Labels</span>
+                </label>
+            </div>
         </div>
-        <div class="controls-right" id="controls">
-            <select id="safe-zone" title="Overlay safe zones from the existing PDF guidelines on each crop">
-                <option value="off">Safe zone: Off</option>
-                <option value="conservative">Conservative (200/120px)</option>
-                <option value="usable">Usable (66/60px)</option>
-                <option value="survival">2:3 survival zone (333/0px)</option>
-            </select>
-            <label class="toggle-label">
-                <input type="checkbox" id="show-labels" checked>
-                <span>Labels</span>
-            </label>
+
+        <div id="gallery" class="hidden">
+            <div id="tiles"></div>
         </div>
-    </div>
 
-    <div id="gallery" class="hidden">
-        <div id="tiles"></div>
-    </div>
+        <div id="empty-state">
+            <p class="empty-heading">Your 3:2 source ships at <strong id="surface-count">24</strong> different crop shapes. Upload a photo to see the impact.</p>
+            <div id="empty-tiles"></div>
+        </div>
+    </section>
 
-    <div id="empty-state">
-        <p class="empty-heading">Your 3:2 source ships at <strong id="surface-count">24</strong> different crop shapes. Upload a photo to see the impact.</p>
-        <div id="empty-tiles"></div>
+    <!-- VIEW: Specs -->
+    <section id="view-specs" class="hidden">
+        <div id="input-spec-panel">
+            <h2 class="input-spec-heading">Source & Delivery Pipeline (verified from code)</h2>
+            <dl class="input-spec-list">
+                <div class="input-spec-item">
+                    <dt>Source resolution</dt>
+                    <dd>Single image at 1200×800 min (3:2). One upload serves all surfaces.</dd>
+                </div>
+                <div class="input-spec-item">
+                    <dt>Density</dt>
+                    <dd>Cloudinary delivers 2x/3x via <code>dpr_{scale}</code> per device — no separate files needed</dd>
+                </div>
+                <div class="input-spec-item">
+                    <dt>Crop mode</dt>
+                    <dd><code>c_fill,g_center</code> — center crop, fill container. Never stretches.</dd>
+                </div>
+                <div class="input-spec-item">
+                    <dt>Format delivery</dt>
+                    <dd><code>f_auto</code> — Cloudinary negotiates best format per client (webp, avif, heic)</dd>
+                </div>
+                <div class="input-spec-item">
+                    <dt>Quality</dt>
+                    <dd><code>q_auto:eco</code> — bandwidth-optimized automatic quality (not a fixed %)</dd>
+                </div>
+                <div class="input-spec-item">
+                    <dt>Not yet confirmed</dt>
+                    <dd>Source format, color profile, max file size, naming convention <span class="input-spec-note">(confirm with CCM team)</span></dd>
+                </div>
+            </dl>
+        </div>
         <div id="specs-section">
             <h2 class="specs-heading">Specifications</h2>
+            <div id="specs-filter-bar">
+                <div class="tabs" id="specs-tabs">
+                    <button class="tab active" data-filter="all">All</button>
+                    <button class="tab" data-filter="web">Web</button>
+                    <button class="tab" data-filter="mobile-rn">Mobile</button>
+                    <button class="tab" data-filter="ios">iOS</button>
+                </div>
+            </div>
             <div id="specs-table"></div>
         </div>
-    </div>
+    </section>
+
+    <!-- VIEW: Photo Context -->
+    <section id="view-context" class="hidden">
+        <p class="context-heading">See where your photo lives in the actual product — same image, different surfaces.</p>
+
+        <div class="mockups-grid">
+            <!-- My Menu (Web) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">My Menu — Web</div>
+                <div class="mockup-frame-sublabel">16:9 recipe cards (768×432)</div>
+                <div class="browser-frame">
+                    <div class="browser-chrome">
+                        <span class="browser-dot"></span>
+                        <span class="browser-dot"></span>
+                        <span class="browser-dot"></span>
+                    </div>
+                    <div class="browser-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-icon"></div>
+                            <div class="mock-nav-title">HelloFresh</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">Your meals this week</div>
+                        <div class="mock-menu-grid">
+                            <div class="mock-menu-card">
+                                <div class="mock-menu-card-image"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-menu-card-body">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-menu-card">
+                                <div class="mock-menu-card-image"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-menu-card-body">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-menu-card">
+                                <div class="mock-menu-card-image"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-menu-card-body">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discover Hub (Mobile) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Discover Hub — Mobile</div>
+                <div class="mockup-frame-sublabel">2:3 portrait cards (164×246)</div>
+                <div class="phone-frame">
+                    <div class="phone-status-bar"><div class="phone-notch"></div></div>
+                    <div class="phone-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-title">Discover</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">Top this week</div>
+                        <div class="mock-cards-row">
+                            <div class="mock-card" style="width:110px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-card" style="width:110px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-card" style="width:110px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mock-section-title">Highly rated</div>
+                        <div class="mock-cards-row">
+                            <div class="mock-card" style="width:110px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                            </div>
+                            <div class="mock-card" style="width:110px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cookbook (Mobile) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Cookbook — Mobile</div>
+                <div class="mockup-frame-sublabel">2:3 portrait "Meals from your box" (160×240)</div>
+                <div class="phone-frame">
+                    <div class="phone-status-bar"><div class="phone-notch"></div></div>
+                    <div class="phone-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-title">Cookbook</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">Meals from your box</div>
+                        <div class="mock-cards-row">
+                            <div class="mock-card" style="width:100px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-time-pill"></div>
+                                </div>
+                            </div>
+                            <div class="mock-card" style="width:100px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-time-pill"></div>
+                                </div>
+                            </div>
+                            <div class="mock-card" style="width:100px">
+                                <div class="mock-card-image" style="padding-bottom:150%">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-time-pill"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mock-section-title">Collections</div>
+                        <div class="mock-cards-row">
+                            <div class="mock-card" style="width:120px">
+                                <div class="mock-card-image" style="padding-bottom:100%">
+                                    <img class="context-img" src="" alt="">
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-card" style="width:120px">
+                                <div class="mock-card-image" style="padding-bottom:100%">
+                                    <img class="context-img" src="" alt="">
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mock-tab-bar">
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipe Detail (Mobile) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Recipe Detail — Mobile</div>
+                <div class="mockup-frame-sublabel">Full-bleed header (~2:1 visible crop)</div>
+                <div class="phone-frame">
+                    <div class="phone-status-bar"><div class="phone-notch"></div></div>
+                    <div class="phone-screen">
+                        <div class="mock-card-image" style="padding-bottom:50%;position:relative">
+                            <img class="context-img" src="" alt="">
+                            <div class="mock-back-arrow"></div>
+                            <div class="mock-share-icon"></div>
+                        </div>
+                        <div class="mock-detail-content">
+                            <div class="mock-detail-title"></div>
+                            <div class="mock-detail-meta">
+                                <div class="mock-pill"></div>
+                                <div class="mock-pill"></div>
+                                <div class="mock-pill"></div>
+                            </div>
+                            <div class="mock-text-line"></div>
+                            <div class="mock-text-line medium"></div>
+                            <div class="mock-text-line short"></div>
+                            <div style="height:12px"></div>
+                            <div class="mock-text-line"></div>
+                            <div class="mock-text-line medium"></div>
+                            <div class="mock-text-line short"></div>
+                        </div>
+                        <div class="mock-tab-bar">
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Store / Past Orders (Web) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Store / Past Orders — Web</div>
+                <div class="mockup-frame-sublabel">Dynamic width × fixed h=202px (ratio drifts 1.5:1 → 2.5:1)</div>
+                <div class="browser-frame">
+                    <div class="browser-chrome">
+                        <span class="browser-dot"></span>
+                        <span class="browser-dot"></span>
+                        <span class="browser-dot"></span>
+                    </div>
+                    <div class="browser-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-icon"></div>
+                            <div class="mock-nav-title">HelloFresh</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">Past Orders</div>
+                        <div class="mock-store-grid">
+                            <div class="mock-store-card">
+                                <div class="mock-store-card-image"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-menu-card-body">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-store-card">
+                                <div class="mock-store-card-image"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-menu-card-body">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Menu — Preselected (Mobile) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Mobile Menu — Your Meals</div>
+                <div class="mockup-frame-sublabel">Large card: dynamic × h=202pt / Small: 1:1 140×140</div>
+                <div class="phone-frame">
+                    <div class="phone-status-bar"><div class="phone-notch"></div></div>
+                    <div class="phone-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-title">Menu</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">Your meals</div>
+                        <div class="mock-preselected-large">
+                            <div class="mock-card-image" style="padding-bottom:48%;position:relative">
+                                <img class="context-img" src="" alt="">
+                                <div class="mock-bookmark" style="top:auto;bottom:6px;right:6px"></div>
+                            </div>
+                            <div class="mock-card-meta">
+                                <div class="mock-text-line medium"></div>
+                                <div class="mock-text-line short"></div>
+                            </div>
+                        </div>
+                        <div class="mock-section-title">Preselections</div>
+                        <div class="mock-cards-row">
+                            <div class="mock-card" style="width:90px">
+                                <div class="mock-card-image" style="padding-bottom:100%">
+                                    <img class="context-img" src="" alt="">
+                                </div>
+                                <div class="mock-card-meta"><div class="mock-text-line short"></div></div>
+                            </div>
+                            <div class="mock-card" style="width:90px">
+                                <div class="mock-card-image" style="padding-bottom:100%">
+                                    <img class="context-img" src="" alt="">
+                                </div>
+                                <div class="mock-card-meta"><div class="mock-text-line short"></div></div>
+                            </div>
+                            <div class="mock-card" style="width:90px">
+                                <div class="mock-card-image" style="padding-bottom:100%">
+                                    <img class="context-img" src="" alt="">
+                                </div>
+                                <div class="mock-card-meta"><div class="mock-text-line short"></div></div>
+                            </div>
+                        </div>
+                        <div class="mock-tab-bar">
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cart (Web + iOS) -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Cart — Web</div>
+                <div class="mockup-frame-sublabel">1:1 thumbnails (72×72 mobile, 90×90 desktop)</div>
+                <div class="browser-frame">
+                    <div class="browser-chrome">
+                        <span class="browser-dot"></span>
+                        <span class="browser-dot"></span>
+                        <span class="browser-dot"></span>
+                    </div>
+                    <div class="browser-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-icon"></div>
+                            <div class="mock-nav-title">Your Box</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">3 recipes selected</div>
+                        <div class="mock-cart-list">
+                            <div class="mock-cart-item">
+                                <div class="mock-cart-thumb"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-cart-item-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-cart-item">
+                                <div class="mock-cart-thumb"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-cart-item-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-cart-item">
+                                <div class="mock-cart-thumb"><img class="context-img" src="" alt=""></div>
+                                <div class="mock-cart-item-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- iOS Weekly Menu -->
+            <div class="mockup-frame">
+                <div class="mockup-frame-label">Weekly Menu — iOS</div>
+                <div class="mockup-frame-sublabel">~1.75:1 recipe cards (~350×200pt)</div>
+                <div class="phone-frame">
+                    <div class="phone-status-bar"><div class="phone-notch"></div></div>
+                    <div class="phone-screen">
+                        <div class="mock-nav">
+                            <div class="mock-nav-title">This Week</div>
+                            <div class="mock-nav-icon"></div>
+                        </div>
+                        <div class="mock-section-title">Your recipes</div>
+                        <div class="mock-ios-menu-cards">
+                            <div class="mock-ios-menu-card">
+                                <div class="mock-card-image" style="padding-bottom:57%;position:relative">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                            <div class="mock-ios-menu-card">
+                                <div class="mock-card-image" style="padding-bottom:57%;position:relative">
+                                    <img class="context-img" src="" alt="">
+                                    <div class="mock-bookmark"></div>
+                                </div>
+                                <div class="mock-card-meta">
+                                    <div class="mock-text-line medium"></div>
+                                    <div class="mock-text-line short"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mock-tab-bar">
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                            <div class="mock-tab-bar-item"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <script src="viewer.js"></script>
 </body>
