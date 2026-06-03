@@ -202,6 +202,7 @@
     }
 
     function getTileWidth(surface) {
+        if (activeFilter === 'all') return 280;
         var fd = (surface.fixedDim || '').toLowerCase();
         var fl = (surface.flexDim || '').toLowerCase();
         if (fd === 'both') return 280;
@@ -482,20 +483,6 @@
 
             imageWrapper.appendChild(imgContainer);
 
-            // Fixed/flex chips below the image
-            const chips = getDimChips(surface);
-            if (chips.length > 0) {
-                const chipRow = document.createElement('div');
-                chipRow.className = 'dim-chips';
-                chips.forEach(c => {
-                    const chip = document.createElement('span');
-                    chip.className = 'dim-chip dim-chip-' + c.kind;
-                    chip.textContent = (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text;
-                    chipRow.appendChild(chip);
-                });
-                imageWrapper.appendChild(chipRow);
-            }
-
             const pct = widthVisiblePct(surface.ratio);
             const meta = document.createElement('div');
             meta.className = 'tile-meta';
@@ -517,6 +504,20 @@
                     <span class="loss-badge-inline loss-${lossSeverity(pct)}">${pct}% width</span>
                 </div>
             `;
+
+            // Chips live in meta so they don't overflow a narrow image wrapper
+            const chips = getDimChips(surface);
+            if (chips.length > 0) {
+                const chipRow = document.createElement('div');
+                chipRow.className = 'dim-chips';
+                chips.forEach(c => {
+                    const chip = document.createElement('span');
+                    chip.className = 'dim-chip dim-chip-' + c.kind;
+                    chip.textContent = (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text;
+                    chipRow.appendChild(chip);
+                });
+                meta.appendChild(chipRow);
+            }
 
             tile.style.cursor = 'pointer';
             tile.addEventListener('click', function () { openDetailModal(surface); });
@@ -634,6 +635,7 @@
         let html = '<table class="specs"><thead><tr>';
         html += '<th>Preview</th>';
         html += '<th>Placement</th>';
+        html += '<th>Platform</th>';
         html += '<th>Journey</th>';
         html += '<th>Aspect Ratio</th>';
         html += '<th>Width visible</th>';
@@ -668,6 +670,7 @@
             html += '<tr>';
             html += '<td class="spec-preview-cell"><div class="spec-preview" style="padding-bottom:' + (1 / surface.ratio * 100) + '%"><img src="' + (imageUrl || DEMO_IMAGE) + '" alt=""></div></td>';
             html += '<td class="spec-name">' + surface.name + '</td>';
+            html += '<td>' + getPlatformBadges(surface.platform) + '</td>';
             html += '<td>' + journey + '</td>';
             html += '<td>' + ratioClean + '</td>';
             html += '<td><span class="loss-badge-inline ' + lossClass + '">' + pct + '%</span></td>';
@@ -814,7 +817,7 @@
         });
     }
 
-    const deviceSelector = document.getElementById('device-selector');
+    const deviceSelector = document.getElementById('device-sub-bar');
     const deviceChipsContainer = document.getElementById('device-chips');
     const deviceCustomInput = document.getElementById('device-custom-input');
     const specsDeviceIndicator = document.getElementById('specs-device-indicator');
@@ -830,6 +833,8 @@
 
     function renderDeviceChips(platformFilter) {
         if (!deviceChipsContainer) return;
+        var subBar = document.getElementById('device-sub-bar');
+        if (subBar) subBar.classList.toggle('hidden', platformFilter === 'all');
         var presets = DEVICE_PRESETS[platformFilter] || DEVICE_PRESETS['all'];
         var defaultWidth = PRESET_DEFAULT_WIDTH[platformFilter] || 390;
 

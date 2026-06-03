@@ -57,28 +57,30 @@
     <!-- VIEW: Simulator -->
     <section id="view-simulator">
         <div id="filter-bar">
-            <div class="tabs" id="platform-tabs">
-                <button class="tab active" data-filter="all">All</button>
-                <button class="tab" data-filter="web">Web</button>
-                <button class="tab" data-filter="mobile-rn">Mobile</button>
-                <button class="tab" data-filter="ios">iOS</button>
-            </div>
-            <div class="controls-right" id="controls">
-                <div class="device-selector" id="device-selector">
-                    <span class="device-selector-label">Device</span>
-                    <div class="device-chips" id="device-chips"></div>
-                    <input type="number" id="device-custom-input" class="device-custom-input hidden" value="390" min="280" max="600" placeholder="px">
+            <div class="filter-bar-row">
+                <div class="tabs" id="platform-tabs">
+                    <button class="tab active" data-filter="all">All</button>
+                    <button class="tab" data-filter="web">Web</button>
+                    <button class="tab" data-filter="mobile-rn">Mobile</button>
+                    <button class="tab" data-filter="ios">iOS</button>
                 </div>
-                <select id="safe-zone" title="Overlay safe zones from the existing PDF guidelines on each crop">
-                    <option value="off">Safe zone: Off</option>
-                    <option value="conservative">Conservative (200/120px)</option>
-                    <option value="usable">Usable (66/60px)</option>
-                    <option value="survival">2:3 survival zone (333/0px)</option>
-                </select>
-                <label class="toggle-label">
-                    <input type="checkbox" id="show-labels" checked>
-                    <span>Labels</span>
-                </label>
+                <div class="controls-right" id="controls">
+                    <select id="safe-zone" title="Overlay safe zones from the existing PDF guidelines on each crop">
+                        <option value="off">Safe zone: Off</option>
+                        <option value="conservative">Conservative (200/120px)</option>
+                        <option value="usable">Usable (66/60px)</option>
+                        <option value="survival">2:3 survival zone (333/0px)</option>
+                    </select>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="show-labels" checked>
+                        <span>Labels</span>
+                    </label>
+                </div>
+            </div>
+            <div id="device-sub-bar" class="hidden">
+                <span class="device-selector-label">Device</span>
+                <div class="device-chips" id="device-chips"></div>
+                <input type="number" id="device-custom-input" class="device-custom-input hidden" value="390" min="280" max="600" placeholder="px">
             </div>
         </div>
 
