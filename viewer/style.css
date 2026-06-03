@@ -127,8 +127,9 @@ h1 { font-size: 1.25rem; font-weight: 600; color: var(--color-foreground-primary
 /* Main navigation */
 #main-nav {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0;
+    padding-left: 2rem;
     border-bottom: 1px solid var(--color-elevation-border-divider);
     position: sticky;
     top: 60px;
@@ -444,12 +445,14 @@ select {
 /* Label slot overlays */
 .label-slot {
     position: absolute;
-    width: 50px;
-    height: 20px;
+    width: 18%;
+    height: 7%;
+    min-height: 8px;
     border: 1.5px solid var(--label-border);
     background: var(--label-slot);
     border-radius: 3px;
-    font-size: 0.5rem;
+    font-size: 0.45rem;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -459,10 +462,10 @@ select {
     pointer-events: none;
 }
 
-.label-slot.top-right { top: 6px; right: 6px; }
-.label-slot.top-left { top: 6px; left: 6px; }
-.label-slot.bottom-left { bottom: 6px; left: 6px; }
-.label-slot.bottom-right { bottom: 6px; right: 6px; }
+.label-slot.top-right { top: 3%; right: 3%; }
+.label-slot.top-left { top: 3%; left: 3%; }
+.label-slot.bottom-left { bottom: 3%; left: 3%; }
+.label-slot.bottom-right { bottom: 3%; right: 3%; }
 
 /* Input Spec Panel */
 #input-spec-panel {
