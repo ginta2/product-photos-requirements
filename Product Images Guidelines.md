@@ -184,7 +184,7 @@ Not all 30 surfaces matter equally. Focus creative effort accordingly:
 
 | Priority | Description | Surfaces |
 |---|---|---|
-| **P0** | Every active customer sees these in the core menu/cart/cooking flow + new portrait surfaces driving discovery. Optimize first. | My Menu cards (web/iOS/RN), Cart thumbnails, Recipe Detail headers, Discover Hub carousel, Cookbook "Meals from your box", Past Orders Rating v2, Mobile Menu preselected (large + small) |
+| **P0** | Every active customer sees these in the core menu/cart/cooking flow and primary discovery surfaces. Optimize first. | My Menu cards (web/iOS/RN), Discover Hub carousel, Cookbook "Meals from your box", Cart thumbnails, Recipe Detail headers, Past Orders Rating v2, Mobile Menu preselected (large + small) |
 | **P1** | Secondary discovery and confirmation contexts. Validate after P0. | Cookbook collections/recently saved/recipe list, Recipe Hub sections, Customization thumbnails, Past Orders Rating v1, Mobile Menu favourites/hub/past delivery |
 | **P2** | Niche, low-traffic, or visually small. Accept default crop behavior unless edge case is severe. | Recipe Ingredient close-ups, Add-on / Food Item Carousel, Founder/Creator profile grid |
 

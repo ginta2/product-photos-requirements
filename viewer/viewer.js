@@ -17,6 +17,10 @@
 
     const DEMO_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200&h=800&fit=crop';
 
+    const detailOverlay = document.getElementById('detail-overlay');
+    const detailContent = document.getElementById('detail-content');
+    const detailClose = document.getElementById('detail-close');
+
     let surfaces = [];
     let imageUrl = null;
     let activeFilter = 'all';
@@ -199,6 +203,140 @@
         };
     }
 
+    function openDetailModal(surface) {
+        const pct = widthVisiblePct(surface.ratio);
+        const severity = lossSeverity(pct);
+        const chips = getDimChips(surface);
+        const platformKey = getPlatformKey(surface.platform);
+        const platformLabel = platformKey === 'mobile-rn' ? 'Mobile (React Native)' : platformKey === 'ios' ? 'iOS' : 'Web';
+        const ratioClean = surface.ratioRaw.replace(/\*\*/g, '');
+        const portrait = isPortrait(surface.ratio);
+        const imgSrc = imageUrl || DEMO_IMAGE;
+
+        // Safe zone explanation for this surface
+        const safeZoneNotes = [];
+        if (portrait) {
+            safeZoneNotes.push('⚠️ Portrait surface: a 3:2 landscape source loses <strong>' + (100 - pct) + '% of its width</strong> in a center crop. Only the central ' + pct + '% of width survives.');
+            safeZoneNotes.push('To guarantee subject visibility, all key content must fall within the central <strong>' + Math.round(1200 * (surface.ratio / SOURCE_RATIO)) + 'px</strong> of the 1200px source width.');
+            safeZoneNotes.push('The Conservative (800px usable) and Usable (1068px) safe zones both extend well beyond this limit — neither protects content from a portrait crop.');
+        } else if (pct < 100) {
+            safeZoneNotes.push('Some horizontal cropping occurs (' + pct + '% width visible). Subject should be centred.');
+        } else {
+            safeZoneNotes.push('Full source width is visible. Height may be cropped for very wide ratios.');
+        }
+
+        const fixedFlexHtml = chips.length > 0
+            ? chips.map(c => '<span class="dim-chip dim-chip-' + c.kind + '">' + (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text + '</span>').join(' ')
+            : '<span class="detail-value">Both dimensions fixed</span>';
+
+        const labelsHtml = surface.hasLabel
+            ? '<span class="detail-value">' + surface.labelPosition + '</span><p class="detail-note">UI elements overlay this area. Avoid placing critical subject content here.</p>'
+            : '<span class="detail-value muted">None</span>';
+
+        const sourceHtml = surface.source && surface.source !== 'TBD' && surface.source !== '—'
+            ? '<code class="detail-source">' + surface.source + '</code>'
+            : '<span class="detail-value muted">TBD — code location not pinned</span>';
+
+        const journeyHtml = surface.journey && surface.journey !== '—'
+            ? '<span class="badge-journey">' + surface.journey + '</span>'
+            : '<span class="detail-value muted">—</span>';
+
+        detailContent.innerHTML = `
+            <div class="detail-header">
+                <div class="detail-preview-col">
+                    <div class="detail-image-container" style="padding-bottom:${(1 / surface.ratio * 100)}%">
+                        <img src="${imgSrc}" alt="${surface.name}">
+                        ${surface.hasLabel && surface.labelPosition !== '—' ? renderLabelSlotsHtml(surface.labelPosition) : ''}
+                        <div class="loss-badge loss-${severity}">${pct}% width</div>
+                    </div>
+                    <p class="detail-ratio-label">${ratioClean}${portrait ? ' · <span class="badge-portrait">Portrait</span>' : ''}</p>
+                </div>
+                <div class="detail-title-col">
+                    <h2 class="detail-name">${surface.name}</h2>
+                    <p class="detail-platform">${platformLabel}</p>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-section">
+                    <h3>Dimensions</h3>
+                    <dl>
+                        <dt>Aspect ratio</dt><dd>${ratioClean}</dd>
+                        <dt>Resolution</dt><dd>${surface.resolution}</dd>
+                        <dt>Fixed dimension</dt><dd>${fixedFlexHtml}</dd>
+                        ${chips.length > 0 ? '<dt>Flexible dimension</dt><dd>' + chips.filter(c => c.kind === 'flex').map(c => c.text).join(', ') + '</dd>' : ''}
+                    </dl>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Crop behaviour</h3>
+                    <dl>
+                        <dt>Crop mode</dt><dd>Center crop (all platforms)</dd>
+                        <dt>Width visible</dt><dd><span class="loss-badge-inline loss-${severity}">${pct}%</span></dd>
+                        <dt>Width lost</dt><dd>${100 - pct}%</dd>
+                    </dl>
+                </div>
+
+                <div class="detail-section detail-section-full">
+                    <h3>Safe zone</h3>
+                    ${safeZoneNotes.map(n => '<p class="detail-note">' + n + '</p>').join('')}
+                    <dl>
+                        <dt>Conservative zone</dt><dd>800×560px usable on 1200×800 source (200px L/R, 120px T/B margins)</dd>
+                        <dt>Usable zone</dt><dd>1068×680px usable (66px L/R, 60px T/B margins)</dd>
+                        <dt>2:3 survival zone</dt><dd>534px centered — only zone that survives portrait crop (333px L/R margin)</dd>
+                    </dl>
+                </div>
+
+                <div class="detail-section">
+                    <h3>UI labels / overlays</h3>
+                    ${labelsHtml}
+                </div>
+
+                <div class="detail-section">
+                    <h3>User journey</h3>
+                    ${journeyHtml}
+                </div>
+
+                <div class="detail-section detail-section-full">
+                    <h3>Code source</h3>
+                    ${sourceHtml}
+                </div>
+
+                <div class="detail-section detail-section-full">
+                    <h3>Creative requirements</h3>
+                    <ul class="detail-checklist">
+                        ${portrait ? '<li class="checklist-warn">Portrait surface — subject must be centred within the middle ' + pct + '% of source width. Landscape compositions will lose the subject.</li>' : ''}
+                        ${chips.some(c => c.kind === 'flex') ? '<li class="checklist-warn">Flexible dimension — container width varies. Compose for the narrowest expected viewport; wide platings or edge-anchored props will be cropped unpredictably.</li>' : ''}
+                        ${surface.hasLabel ? '<li class="checklist-info">UI elements appear at: ' + surface.labelPosition + '. Keep these areas free of key text, faces, or plating details.</li>' : ''}
+                        <li>All crops use center crop — no stretching or distortion. Only edges are lost.</li>
+                        <li>Source minimum: 1200×800px at 3:2. sRGB, JPG, no alpha channel.</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        detailOverlay.classList.remove('hidden');
+    }
+
+    function renderLabelSlotsHtml(labelPosition) {
+        const pos = labelPosition.toLowerCase();
+        let html = '';
+        if (pos.includes('top-right')) html += '<div class="label-slot top-right"></div>';
+        if (pos.includes('top-left')) html += '<div class="label-slot top-left"></div>';
+        if (pos.includes('bottom-left')) html += '<div class="label-slot bottom-left"></div>';
+        if (pos.includes('bottom-right')) html += '<div class="label-slot bottom-right"></div>';
+        return html;
+    }
+
+    function closeDetailModal() {
+        detailOverlay.classList.add('hidden');
+    }
+
+    detailClose.addEventListener('click', closeDetailModal);
+    detailOverlay.addEventListener('click', function (e) {
+        if (e.target === detailOverlay) closeDetailModal();
+    });
+
     function renderTiles() {
         if (!imageUrl || surfaces.length === 0) return;
 
@@ -243,14 +381,6 @@
                 if (positions.includes('bottom-right')) imgContainer.appendChild(createLabelSlot('bottom-right', 'Pill'));
             }
 
-            // Crop-loss badge (% width visible)
-            const pct = widthVisiblePct(surface.ratio);
-            const lossBadge = document.createElement('div');
-            lossBadge.className = 'loss-badge loss-' + lossSeverity(pct);
-            lossBadge.textContent = pct + '% width';
-            lossBadge.title = 'Percentage of source width preserved after center-crop';
-            imgContainer.appendChild(lossBadge);
-
             imageWrapper.appendChild(imgContainer);
 
             // Fixed/flex chips below the image
@@ -267,28 +397,30 @@
                 imageWrapper.appendChild(chipRow);
             }
 
+            const pct = widthVisiblePct(surface.ratio);
             const meta = document.createElement('div');
             meta.className = 'tile-meta';
 
             const portraitBadge = isPortrait(surface.ratio)
                 ? '<span class="badge-portrait">Portrait</span>'
                 : '';
-            const priorityBadge = surface.priority
-                ? '<span class="badge-priority badge-' + surface.priority.toLowerCase() + '">' + surface.priority + '</span>'
-                : '';
             const journeyBadge = surface.journey && surface.journey !== '—'
                 ? '<span class="badge-journey">' + surface.journey + '</span>'
                 : '';
 
             meta.innerHTML = `
-                <div class="surface-name">${priorityBadge}${surface.name}${portraitBadge}</div>
+                <div class="surface-name">${surface.name}${portraitBadge}</div>
                 <div class="surface-details">
                     <span>${surface.platform}</span>
                     <span>${surface.ratioRaw.replace(/\*\*/g, '')}</span>
                     <span>${surface.resolution}</span>
                     ${journeyBadge}
+                    <span class="loss-badge-inline loss-${lossSeverity(pct)}">${pct}% width</span>
                 </div>
             `;
+
+            tile.style.cursor = 'pointer';
+            tile.addEventListener('click', function () { openDetailModal(surface); });
 
             tile.appendChild(imageWrapper);
             tile.appendChild(meta);
@@ -349,13 +481,7 @@
                 if (positions.includes('bottom-right')) shape.appendChild(createLabelSlot('bottom-right', ''));
             }
 
-            // Crop-loss badge
             const pct = widthVisiblePct(surface.ratio);
-            const lossBadge = document.createElement('div');
-            lossBadge.className = 'empty-loss-badge loss-' + lossSeverity(pct);
-            lossBadge.textContent = pct + '%';
-            lossBadge.title = pct + '% of source width visible after center-crop';
-            shape.appendChild(lossBadge);
 
             const label = document.createElement('div');
             label.className = 'empty-label';
@@ -363,11 +489,8 @@
             const platformKey = getPlatformKey(surface.platform);
             const platformLabel = platformKey === 'mobile-rn' ? 'Mobile' : platformKey === 'ios' ? 'iOS' : 'Web';
 
-            const priorityHtml = surface.priority
-                ? '<span class="empty-priority empty-priority-' + surface.priority.toLowerCase() + '">' + surface.priority + '</span>'
-                : '';
-
-            label.innerHTML = priorityHtml + surface.name + ' <span class="empty-platform">' + platformLabel + '</span>';
+            label.innerHTML = surface.name + ' <span class="empty-platform">' + platformLabel + '</span>'
+                + '<br><span class="loss-badge-inline loss-' + lossSeverity(pct) + '" style="margin-top:0.3rem;display:inline-block">' + pct + '% width</span>';
 
             // Fixed/flex chips below the label
             const chips = getDimChips(surface);
@@ -388,6 +511,9 @@
                 card.appendChild(label);
             }
 
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', function () { openDetailModal(surface); });
+
             container.appendChild(card);
         });
     }
@@ -400,7 +526,6 @@
 
         let html = '<table class="specs"><thead><tr>';
         html += '<th>Preview</th>';
-        html += '<th>Priority</th>';
         html += '<th>Placement</th>';
         html += '<th>Journey</th>';
         html += '<th>Aspect Ratio</th>';
@@ -436,7 +561,6 @@
 
             html += '<tr>';
             html += '<td class="spec-preview-cell"><div class="spec-preview" style="padding-bottom:' + (1 / surface.ratio * 100) + '%"><img src="' + (imageUrl || DEMO_IMAGE) + '" alt=""></div></td>';
-            html += '<td><span class="badge-priority ' + priorityClass + '">' + priority + '</span></td>';
             html += '<td class="spec-name">' + surface.name + '</td>';
             html += '<td>' + journey + '</td>';
             html += '<td>' + ratioClean + '</td>';
@@ -531,7 +655,10 @@
 
     // Keyboard shortcut
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            closeModal();
+            closeDetailModal();
+        }
     });
 
     // Load surfaces
