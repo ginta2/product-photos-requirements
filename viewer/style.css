@@ -1181,9 +1181,11 @@ select {
 }
 
 .phone-screen {
-    min-height: 520px;
+    min-height: auto;
     overflow: hidden;
     background: #fff;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Browser frame */
@@ -1466,6 +1468,7 @@ select {
     border-radius: 8px;
     overflow: hidden;
     background: #f9f9f9;
+    border: 1px solid var(--color-elevation-level2);
 }
 
 .mock-menu-card-image {
@@ -1540,6 +1543,22 @@ select {
     overflow: hidden;
     flex-shrink: 0;
     position: relative;
+}
+
+.mock-cart-thumb-sm {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+}
+.mock-cart-thumb-sm img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
 }
 
 .mock-cart-thumb img {
