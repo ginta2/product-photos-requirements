@@ -217,13 +217,14 @@
         var fd = (surface.fixedDim || '').toLowerCase();
         var fl = (surface.flexDim || '').toLowerCase();
         if (fd === 'both') {
-            // Portrait fixed-ratio surfaces always appear in 2-col grids/carousels in prod —
-            // render at half-column width so the tile size matches real on-device scale.
-            var displayRatioForSize = getDisplayRatio(surface);
-            if (displayRatioForSize < 1) {
-                var mobileRef = 390;
-                var colWidth = Math.round((mobileRef - 24 - 10) / 2); // 24px padding + 10px gap
-                return Math.round((colWidth / mobileRef) * 280); // ~128px
+            // Scale tile to actual production size — parse width from resolution string
+            // (e.g. "56×56pt" → 40px, "164×246" → 118px, "200×128" → 144px).
+            // All values scaled relative to 390pt mobile reference → 280px display max.
+            var resMatch = (surface.resolution || '').match(/(\d+)\s*(?:[×x]|w\b)/);
+            if (resMatch) {
+                var actualW = parseInt(resMatch[1]);
+                var scaled = Math.round((actualW / 390) * 280);
+                return Math.max(36, Math.min(280, scaled));
             }
             return 280;
         }
