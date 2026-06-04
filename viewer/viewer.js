@@ -84,7 +84,7 @@
         const explicit = clean.match(/^~?(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)/);
         if (explicit) return parseFloat(explicit[1]) / parseFloat(explicit[2]);
 
-        if (clean.includes('portrait') && !explicit) return 2 / 3;
+        if (clean.toLowerCase().includes('portrait') && !explicit) return 2 / 3;
 
         const dim = clean.match(/(\d+)\s*[×x]\s*(\d+)/);
         if (dim) return parseInt(dim[1]) / parseInt(dim[2]);
@@ -127,6 +127,13 @@
         if (!targetRatio || targetRatio <= 0) return 100;
         if (targetRatio >= SOURCE_RATIO) return 100;
         return Math.round((targetRatio / SOURCE_RATIO) * 100);
+    }
+
+    // For wide surfaces (ratio > 3:2): what % of source HEIGHT is visible after center crop?
+    function heightVisiblePct(targetRatio) {
+        if (!targetRatio || targetRatio <= 0) return 100;
+        if (targetRatio <= SOURCE_RATIO) return 100;
+        return Math.round((SOURCE_RATIO / targetRatio) * 100);
     }
 
     function lossSeverity(pct) {
@@ -190,6 +197,14 @@
         var h = parseFixedHeight(surface.fixedDim);
         if (!h) return null;
         return { min: range.min / h, max: range.max / h, single: false };
+    }
+
+    // For fluid/dynamic surfaces, use the device-computed ratio instead of the 16:9 fallback.
+    // Falls back to surface.ratio for fixed surfaces.
+    function getDisplayRatio(surface) {
+        var range = computeRatioRange(surface);
+        if (range) return range.min; // use min (narrowest viewport or single computed value)
+        return surface.ratio;
     }
 
     function formatRatio(r) {
@@ -300,24 +315,28 @@
     }
 
     function openDetailModal(surface) {
-        const pct = widthVisiblePct(surface.ratio);
+        const displayRatio = getDisplayRatio(surface);
+        const pct = widthVisiblePct(displayRatio);
         const severity = lossSeverity(pct);
         const chips = getDimChips(surface);
         const platformLabel = getPlatformBadges(surface.platform);
         const ratioClean = surface.ratioRaw.replace(/\*\*/g, '');
-        const portrait = isPortrait(surface.ratio);
+        const portrait = isPortrait(displayRatio);
         const imgSrc = imageUrl || DEMO_IMAGE;
 
         // Safe zone explanation for this surface
         const safeZoneNotes = [];
+        const hPct = heightVisiblePct(displayRatio);
         if (portrait) {
             safeZoneNotes.push('⚠️ Portrait surface: a 3:2 landscape source loses <strong>' + (100 - pct) + '% of its width</strong> in a center crop. Only the central ' + pct + '% of width survives.');
-            safeZoneNotes.push('To guarantee subject visibility, all key content must fall within the central <strong>' + Math.round(1200 * (surface.ratio / SOURCE_RATIO)) + 'px</strong> of the 1200px source width.');
+            safeZoneNotes.push('To guarantee subject visibility, all key content must fall within the central <strong>' + Math.round(1200 * (displayRatio / SOURCE_RATIO)) + 'px</strong> of the 1200px source width.');
             safeZoneNotes.push('The Conservative (800px usable) and Usable (1068px) safe zones both extend well beyond this limit — neither protects content from a portrait crop.');
+        } else if (hPct < 100) {
+            safeZoneNotes.push('⚠️ Wide surface: full source width is visible, but only <strong>' + hPct + '% of height</strong> survives a center crop. Content near the top or bottom of the frame will be clipped.');
         } else if (pct < 100) {
             safeZoneNotes.push('Some horizontal cropping occurs (' + pct + '% width visible). Subject should be centred.');
         } else {
-            safeZoneNotes.push('Full source width is visible. Height may be cropped for very wide ratios.');
+            safeZoneNotes.push('Full source is visible — this surface exactly matches the 3:2 source ratio.');
         }
 
         const range = parseFlexRange(surface.flexDim);
@@ -342,10 +361,10 @@
         detailContent.innerHTML = `
             <div class="detail-header">
                 <div class="detail-preview-col">
-                    <div class="detail-image-container" style="padding-bottom:${(1 / surface.ratio * 100)}%">
+                    <div class="detail-image-container" style="padding-bottom:${(1 / displayRatio * 100)}%">
                         <img src="${imgSrc}" alt="${surface.name}">
                         ${surface.hasLabel && surface.labelPosition !== '—' ? renderLabelSlotsHtml(surface.labelPosition) : ''}
-                        <div class="loss-badge loss-${severity}">${pct}% width</div>
+                        <div class="loss-badge loss-${severity}">${hPct < 100 ? hPct + '% height' : pct + '% width'}</div>
                     </div>
                     <p class="detail-ratio-label">${ratioClean}${portrait ? ' · <span class="badge-portrait">Portrait</span>' : ''}</p>
                 </div>
@@ -373,6 +392,7 @@
                         <dt>Crop mode</dt><dd>Center crop (all platforms)</dd>
                         <dt>Width visible</dt><dd><span class="loss-badge-inline loss-${severity}">${pct}%</span></dd>
                         <dt>Width lost</dt><dd>${100 - pct}%</dd>
+                        ${hPct < 100 ? '<dt>Height visible</dt><dd><span class="loss-badge-inline loss-' + lossSeverity(hPct) + '">' + hPct + '%</span></dd><dt>Height lost</dt><dd>' + (100 - hPct) + '%</dd>' : ''}
                     </dl>
                 </div>
 
@@ -405,6 +425,7 @@
                     <h3>Creative requirements</h3>
                     <ul class="detail-checklist">
                         ${portrait ? '<li class="checklist-warn">Portrait surface — subject must be centred within the middle ' + pct + '% of source width. Landscape compositions will lose the subject.</li>' : ''}
+                        ${hPct < 100 ? '<li class="checklist-warn">Wide surface — only ' + hPct + '% of source height is visible. Content near the top or bottom edge (garnishes, hands, table surface) will be clipped. Keep subject in the vertical centre.</li>' : ''}
                         ${chips.some(c => c.kind === 'flex') ? '<li class="checklist-warn">Flexible dimension — container width varies. Compose for the narrowest expected viewport; wide platings or edge-anchored props will be cropped unpredictably.</li>' : ''}
                         ${surface.hasLabel ? '<li class="checklist-info">UI elements appear at: ' + surface.labelPosition + '. Keep these areas free of key text, faces, or plating details.</li>' : ''}
                         <li>All crops use center crop — no stretching or distortion. Only edges are lost.</li>
@@ -452,9 +473,10 @@
             imageWrapper.className = 'tile-image-wrapper';
             imageWrapper.style.width = getTileWidth(surface) + 'px';
 
+            const displayRatio = getDisplayRatio(surface);
             const imgContainer = document.createElement('div');
             imgContainer.className = 'tile-image-container';
-            imgContainer.style.paddingBottom = (1 / surface.ratio * 100) + '%';
+            imgContainer.style.paddingBottom = (1 / displayRatio * 100) + '%';
 
             const img = document.createElement('img');
             img.src = imageUrl || DEMO_IMAGE;
@@ -462,7 +484,7 @@
             imgContainer.appendChild(img);
 
             // Safe-zone overlay (Conservative / Usable / 2:3 survival)
-            const overlay = getSafeZoneOverlay(surface.ratio);
+            const overlay = getSafeZoneOverlay(displayRatio);
             if (overlay) {
                 const safeRect = document.createElement('div');
                 safeRect.className = 'safe-zone-overlay sz-' + overlay.mode;
@@ -483,11 +505,12 @@
 
             imageWrapper.appendChild(imgContainer);
 
-            const pct = widthVisiblePct(surface.ratio);
+            const pct = widthVisiblePct(displayRatio);
+            const hPctTile = heightVisiblePct(displayRatio);
             const meta = document.createElement('div');
             meta.className = 'tile-meta';
 
-            const portraitBadge = isPortrait(surface.ratio)
+            const portraitBadge = isPortrait(displayRatio)
                 ? '<span class="badge-portrait">Portrait</span>'
                 : '';
             const journeyBadge = surface.journey && surface.journey !== '—'
@@ -495,13 +518,16 @@
                 : '';
 
             const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
+            const lossBadge = hPctTile < 100
+                ? '<span class="loss-badge-inline loss-' + lossSeverity(hPctTile) + '">' + hPctTile + '% height</span>'
+                : '<span class="loss-badge-inline loss-' + lossSeverity(pct) + '">' + pct + '% width</span>';
             meta.innerHTML = `
                 <div class="empty-label-name">${truncName}${portraitBadge}
-                    <span class="empty-label-ratio">${formatRatio(surface.ratio)}</span>
+                    <span class="empty-label-ratio">${formatRatio(displayRatio)}</span>
                 </div>
                 <div class="empty-label-meta">
                     ${getPlatformBadges(surface.platform)}
-                    <span class="loss-badge-inline loss-${lossSeverity(pct)}">${pct}% width</span>
+                    ${lossBadge}
                 </div>
             `;
 
@@ -552,10 +578,11 @@
 
             const tileW = getTileWidth(surface);
 
+            const displayRatioG = getDisplayRatio(surface);
             const shape = document.createElement('div');
             shape.className = 'empty-shape';
             shape.style.width = tileW + 'px';
-            shape.style.aspectRatio = surface.ratio;
+            shape.style.aspectRatio = displayRatioG;
 
             const img = document.createElement('img');
             img.src = imageUrl || DEMO_IMAGE;
@@ -563,7 +590,7 @@
             shape.appendChild(img);
 
             // Safe-zone overlay
-            const overlay = getSafeZoneOverlay(surface.ratio);
+            const overlay = getSafeZoneOverlay(displayRatioG);
             if (overlay) {
                 const safeRect = document.createElement('div');
                 safeRect.className = 'safe-zone-overlay sz-' + overlay.mode;
@@ -574,18 +601,21 @@
                 shape.appendChild(safeRect);
             }
 
-
-            const pct = widthVisiblePct(surface.ratio);
+            const pct = widthVisiblePct(displayRatioG);
+            const hPctGrid = heightVisiblePct(displayRatioG);
+            const lossLabel = hPctGrid < 100
+                ? '<span class="loss-badge-inline loss-' + lossSeverity(hPctGrid) + '">' + hPctGrid + '% height</span>'
+                : '<span class="loss-badge-inline loss-' + lossSeverity(pct) + '">' + pct + '% width</span>';
 
             const label = document.createElement('div');
             label.className = 'empty-label';
 
             const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
             label.innerHTML = '<span class="empty-label-name">' + truncName
-                    + ' <span class="empty-label-ratio">' + formatRatio(surface.ratio) + '</span></span>'
+                    + ' <span class="empty-label-ratio">' + formatRatio(displayRatioG) + '</span></span>'
                 + '<span class="empty-label-meta">'
                 + getPlatformBadges(surface.platform)
-                + '<span class="loss-badge-inline loss-' + lossSeverity(pct) + '">' + pct + '% width</span>'
+                + lossLabel
                 + '</span>';
 
             // Fixed/flex chips below the label
@@ -647,26 +677,29 @@
             if (ratioClean.toLowerCase().includes('dynamic') || ratioClean.toLowerCase().includes('fluid') || ratioClean.toLowerCase().includes('variable')) {
                 notes.push('Dynamic sizing');
             }
-            if (isPortrait(surface.ratio)) {
+            const specDisplayRatio = getDisplayRatio(surface);
+            if (isPortrait(specDisplayRatio)) {
                 notes.push('Portrait');
             }
             const noteStr = notes.length > 0 ? notes.join(', ') : '';
             const labelAndNotes = [labelInfo, noteStr].filter(Boolean).join(' · ');
 
-            const pct = widthVisiblePct(surface.ratio);
-            const lossClass = 'loss-' + lossSeverity(pct);
+            const pct = widthVisiblePct(specDisplayRatio);
+            const hPctSpec = heightVisiblePct(specDisplayRatio);
+            const lossText = hPctSpec < 100 ? hPctSpec + '% height' : pct + '% width';
+            const lossClass = 'loss-' + lossSeverity(hPctSpec < 100 ? hPctSpec : pct);
 
             const priority = surface.priority || '—';
             const priorityClass = priority !== '—' ? 'badge-' + priority.toLowerCase() : '';
             const journey = surface.journey || '—';
 
             html += '<tr>';
-            html += '<td class="spec-preview-cell"><div class="spec-preview" style="padding-bottom:' + (1 / surface.ratio * 100) + '%"><img src="' + (imageUrl || DEMO_IMAGE) + '" alt=""></div></td>';
+            html += '<td class="spec-preview-cell"><div class="spec-preview" style="padding-bottom:' + (1 / specDisplayRatio * 100) + '%"><img src="' + (imageUrl || DEMO_IMAGE) + '" alt=""></div></td>';
             html += '<td class="spec-name">' + surface.name + '</td>';
             html += '<td>' + getPlatformBadges(surface.platform) + '</td>';
             html += '<td>' + journey + '</td>';
             html += '<td>' + ratioClean + '</td>';
-            html += '<td><span class="loss-badge-inline ' + lossClass + '">' + pct + '%</span></td>';
+            html += '<td><span class="loss-badge-inline ' + lossClass + '">' + lossText + '</span></td>';
             const chips = getDimChips(surface);
             const bpMatch = (surface.flexDim || '').match(/(\d+)[–\-](\d+)(px|pt).*breakpoint/i);
             const fixedChips = chips.filter(c => c.kind === 'fixed');
