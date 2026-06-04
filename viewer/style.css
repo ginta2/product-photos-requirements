@@ -1731,6 +1731,115 @@ select {
     line-height: 1;
 }
 
+/* 2-column carousel — Discover Hub, Cookbook, Mobile Menu */
+.mock-2col-carousel {
+    display: flex;
+    gap: 10px;
+    padding: 0 12px 12px;
+    overflow: hidden;
+}
+.mock-2col-carousel .mock-card {
+    flex: 0 0 calc(47% - 5px);
+    min-width: 0;
+}
+.mock-2col-carousel.peek .mock-card:nth-child(3) {
+    flex: 0 0 20%;
+    opacity: 0.8;
+}
+.mock-time-badge.right {
+    left: auto;
+    right: 6px;
+}
+.mock-card-meta-small {
+    font-size: 10px;
+    color: var(--color-foreground-secondary);
+    padding: 2px 8px 4px;
+    line-height: 1.3;
+}
+.mock-cooked-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-foreground-secondary);
+}
+.mock-cooked-link::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-foreground-secondary);
+    flex-shrink: 0;
+}
+.mock-presel-card {
+    flex: 0 0 72%;
+    min-width: 0;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--color-elevation-level2);
+}
+.mock-presel-card-body { padding: 6px 8px 4px; }
+.mock-presel-title {
+    height: 12px;
+    border-radius: 3px;
+    background: var(--color-foreground-primary);
+    margin-bottom: 4px;
+    width: 90%;
+}
+.mock-presel-subtitle {
+    height: 9px;
+    border-radius: 3px;
+    background: var(--color-elevation-level2);
+    margin-bottom: 4px;
+    width: 75%;
+}
+.mock-presel-meta {
+    font-size: 9px;
+    color: var(--color-foreground-secondary);
+    margin-bottom: 4px;
+}
+.mock-presel-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+.mock-presel-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--color-elevation-level2);
+    color: var(--color-foreground-secondary);
+}
+.mock-presel-stepper {
+    background: var(--color-foreground-primary);
+    color: white;
+    border-radius: 8px;
+    padding: 5px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+.mock-presel-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #007AFF;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+}
+
 /* Utilities */
 .hidden { display: none !important; }
 

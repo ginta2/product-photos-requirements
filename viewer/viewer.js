@@ -216,7 +216,17 @@
     function getTileWidth(surface) {
         var fd = (surface.fixedDim || '').toLowerCase();
         var fl = (surface.flexDim || '').toLowerCase();
-        if (fd === 'both') return 280;
+        if (fd === 'both') {
+            // Portrait fixed-ratio surfaces always appear in 2-col grids/carousels in prod —
+            // render at half-column width so the tile size matches real on-device scale.
+            var displayRatioForSize = getDisplayRatio(surface);
+            if (displayRatioForSize < 1) {
+                var mobileRef = 390;
+                var colWidth = Math.round((mobileRef - 24 - 10) / 2); // 24px padding + 10px gap
+                return Math.round((colWidth / mobileRef) * 280); // ~128px
+            }
+            return 280;
+        }
         // Scale if either dimension is container/screen-relative:
         //   - fl matches explicit flexible-width patterns (including 'both (carousel)' variants)
         //   - fd is full-bleed (width locked to device, e.g. parallax headers)
