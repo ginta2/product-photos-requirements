@@ -19,7 +19,7 @@
     <header>
         <div class="header-left">
             <h1>Crop Viewer</h1>
-            <p class="subtitle">See how a 3:2 source crops across all production surfaces</p>
+            <p class="subtitle">See how source photos crop across production surfaces — and which formats to shoot</p>
         </div>
         <button id="upload-btn" class="btn-upload">Upload Photo</button>
     </header>
@@ -28,6 +28,7 @@
         <button class="nav-tab active" data-view="simulator">Simulator</button>
         <button class="nav-tab" data-view="specs">Specs</button>
         <button class="nav-tab" data-view="context">Photo Context</button>
+        <button class="nav-tab" data-view="recommendation">Recommendation</button>
     </nav>
 
     <div id="modal-overlay" class="hidden">
@@ -64,6 +65,7 @@
                     <button class="tab" data-filter="mobile-rn">Mobile</button>
                 </div>
                 <div class="controls-right" id="controls">
+                    <span id="source-indicator" class="source-indicator hidden"></span>
                     <div class="view-toggle" id="view-toggle">
                         <button class="view-toggle-btn" data-view="grid" title="Grid view">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0" y="0" width="6" height="6" rx="1" fill="currentColor"/><rect x="8" y="0" width="6" height="6" rx="1" fill="currentColor"/><rect x="0" y="8" width="6" height="6" rx="1" fill="currentColor"/><rect x="8" y="8" width="6" height="6" rx="1" fill="currentColor"/></svg>
@@ -806,6 +808,23 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- VIEW: Recommendation -->
+    <section id="view-recommendation" class="hidden">
+        <div class="reco-container">
+            <h2 class="reco-headline">Optimal source formats for full P0 coverage</h2>
+            <p class="reco-intro">Based on crop-loss analysis across all high-priority surfaces, here's the recommended shooting format set.</p>
+
+            <div class="reco-toggle">
+                <button class="reco-toggle-btn" data-formats="1">1 format</button>
+                <button class="reco-toggle-btn active" data-formats="2">2 formats</button>
+            </div>
+
+            <div id="reco-winner"></div>
+            <div id="reco-comparison"></div>
+            <div id="reco-coverage-table"></div>
         </div>
     </section>
 

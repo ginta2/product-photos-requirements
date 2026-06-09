@@ -25,6 +25,7 @@
     const viewSimulator = document.getElementById('view-simulator');
     const viewSpecs = document.getElementById('view-specs');
     const viewContext = document.getElementById('view-context');
+    const viewRecommendation = document.getElementById('view-recommendation');
     const specsTabs = document.getElementById('specs-tabs');
 
     let surfaces = [];
@@ -111,8 +112,26 @@
         return ratio < 1;
     }
 
-    // Source baseline: 3:2 landscape (1200×800)
-    const SOURCE_RATIO = 3 / 2;
+    function cropLossText(widthPct, heightPct) {
+        if (widthPct >= 100 && heightPct >= 100) return 'Full frame';
+        var visibleArea = Math.round((Math.min(widthPct, 100) * Math.min(heightPct, 100)) / 100);
+        if (heightPct < 100 && widthPct < 100) return visibleArea + '% visible · sides + top/bottom';
+        if (heightPct < 100) return visibleArea + '% visible · top/bottom';
+        return visibleArea + '% visible · sides';
+    }
+
+    function cropLossBadgeHtml(widthPct, heightPct, severityClass) {
+        var text = cropLossText(widthPct, heightPct);
+        if (text === 'Full frame') return '';
+        var parts = text.split(' · ');
+        return '<span class="loss-badge-inline ' + severityClass + '">' + parts[0] + '</span>'
+            + (parts[1] ? '<span class="loss-badge-direction">' + parts[1] + '</span>' : '');
+    }
+
+    const DEFAULT_SOURCE_RATIO = 3 / 2;
+    let sourceRatio = DEFAULT_SOURCE_RATIO;
+    let sourceWidth = null;
+    let sourceHeight = null;
 
     /**
      * Calculate what % of the source's WIDTH is preserved when the source is
@@ -125,15 +144,15 @@
      */
     function widthVisiblePct(targetRatio) {
         if (!targetRatio || targetRatio <= 0) return 100;
-        if (targetRatio >= SOURCE_RATIO) return 100;
-        return Math.round((targetRatio / SOURCE_RATIO) * 100);
+        if (targetRatio >= sourceRatio) return 100;
+        return Math.round((targetRatio / sourceRatio) * 100);
     }
 
     // For wide surfaces (ratio > 3:2): what % of source HEIGHT is visible after center crop?
     function heightVisiblePct(targetRatio) {
         if (!targetRatio || targetRatio <= 0) return 100;
-        if (targetRatio <= SOURCE_RATIO) return 100;
-        return Math.round((SOURCE_RATIO / targetRatio) * 100);
+        if (targetRatio <= sourceRatio) return 100;
+        return Math.round((sourceRatio / targetRatio) * 100);
     }
 
     function lossSeverity(pct) {
@@ -207,10 +226,90 @@
         return surface.ratio;
     }
 
-    function formatRatio(r) {
-        var s = r.toFixed(2);
-        s = s.replace(/\.?0+$/, '');
-        return s + ':1';
+    var STANDARD_RATIOS = [
+        { decimal: 16/9, label: '16:9' },
+        { decimal: 5/3, label: '5:3' },
+        { decimal: 3/2, label: '3:2' },
+        { decimal: 4/3, label: '4:3' },
+        { decimal: 7/4, label: '7:4' },
+        { decimal: 2/1, label: '2:1' },
+        { decimal: 12/5, label: '12:5' },
+        { decimal: 1/1, label: '1:1' },
+        { decimal: 2/3, label: '2:3' },
+        { decimal: 3/4, label: '3:4' },
+        { decimal: 9/16, label: '9:16' },
+        { decimal: 5/7, label: '5:7' },
+    ];
+
+    function getRatioOrientation(r) {
+        if (Math.abs(r - 1) < 0.02) return 'square';
+        if (r > 1.9) return 'wide';
+        if (r > 1) return 'landscape';
+        if (r >= 0.6) return 'portrait';
+        return 'tall';
+    }
+
+    function formatRatioInfo(r, surface) {
+        var pill, nearestLabel, isApprox = false;
+
+        // First try ratioRaw for an explicit W:H ratio
+        if (surface && surface.ratioRaw) {
+            var raw = surface.ratioRaw.replace(/\*\*/g, '').trim();
+            var explicit = raw.match(/^~?(\d+):(\d+)/);
+            if (explicit) {
+                pill = explicit[1] + ':' + explicit[2];
+                nearestLabel = pill;
+            }
+        }
+
+        if (!pill) {
+            // Try exact standard match
+            var exactMatch = null;
+            for (var i = 0; i < STANDARD_RATIOS.length; i++) {
+                if (Math.abs(r - STANDARD_RATIOS[i].decimal) < 0.02) {
+                    exactMatch = STANDARD_RATIOS[i].label;
+                    break;
+                }
+            }
+            if (exactMatch) {
+                pill = exactMatch;
+                nearestLabel = exactMatch;
+            } else {
+                // Near match — use ~ prefix
+                var nearest = STANDARD_RATIOS.reduce(function(best, cur) {
+                    return Math.abs(cur.decimal - r) < Math.abs(best.decimal - r) ? cur : best;
+                });
+                nearestLabel = nearest.label;
+                if (Math.abs(nearest.decimal - r) < 0.1) {
+                    pill = '~' + nearest.label;
+                    isApprox = true;
+                } else {
+                    pill = '~' + r.toFixed(2).replace(/\.?0+$/, '') + ':1';
+                    isApprox = true;
+                }
+            }
+        }
+
+        var orientation = getRatioOrientation(r);
+
+        // Subtext: show resolution + code ratio only when approximating
+        var subtext = '';
+        if (isApprox && surface && surface.resolution && surface.resolution !== '—' && surface.resolution !== 'dynamic') {
+            var codeRatio = (surface.ratioRaw || '').replace(/\*\*/g, '').trim();
+            var explicitCode = codeRatio.match(/^~?(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)/);
+            if (explicitCode && explicitCode[0] !== pill) {
+                subtext = surface.resolution + ' · ' + explicitCode[0] + ' in code';
+            } else {
+                subtext = surface.resolution;
+            }
+        }
+
+        return { pill: pill, orientation: orientation, subtext: subtext };
+    }
+
+    // Legacy string-only wrapper for callers that just need a label
+    function formatRatio(r, surface) {
+        return formatRatioInfo(r, surface).pill;
     }
 
     function getTileWidth(surface) {
@@ -256,18 +355,85 @@
         return 280;
     }
 
+    function getSizeContext(surface) {
+        var fixed = (surface.fixedDim || '').toLowerCase();
+        var flex = (surface.flexDim || '').toLowerCase();
+        var res = (surface.resolution || '').toLowerCase();
+        if (fixed === 'both') {
+            var dim = res.match(/(\d+)/);
+            var px = dim ? parseInt(dim[1]) : 0;
+            if (px <= 72) return 'Tiny thumbnail';
+            if (px <= 140) return 'Small card';
+            if (px <= 200) return 'Medium card';
+            return 'Fixed card';
+        }
+        if (fixed.includes('full-bleed') || flex.includes('full-bleed')) return 'Full-screen width';
+        if (fixed.includes('h=') && flex.includes('container')) return 'Fixed height · fluid width';
+        if (fixed.includes('h=') && flex.includes('300')) return 'Fixed height · fluid width';
+        if (fixed.includes('h=')) return 'Fixed height strip';
+        if (flex.includes('container') || flex.includes('width')) return 'Fills available space';
+        return '';
+    }
+
+    function getDimSummary(surface) {
+        const fixed = (surface.fixedDim || '').trim();
+        const flex = (surface.flexDim || '').trim();
+        const fixedLower = fixed.toLowerCase();
+        const flexLower = flex.toLowerCase();
+
+        if (fixedLower === 'both') {
+            const dim = (surface.resolution || '').match(/(\d+)/);
+            const px = dim ? parseInt(dim[1]) : 0;
+            if (px <= 72) return 'Tiny · fixed size';
+            if (px <= 164) return 'Small · fixed size';
+            return 'Fixed size';
+        }
+
+        const parts = [];
+        const hMatch = fixed.match(/h=(\d+(?:\/\d+)?)(px|pt)/i);
+        if (hMatch) parts.push(hMatch[1] + hMatch[2] + ' tall');
+        else if (fixedLower.includes('full-bleed') || fixedLower.includes('width=full')) parts.push('Full-width');
+
+        if (flexLower.includes('container') || flexLower.includes('full-bleed')) {
+            if (!parts.some(p => p.includes('Full-width'))) parts.push('width fluid');
+        } else if (flexLower.includes('scroll-driven')) {
+            parts.push('height adapts');
+        } else if (flexLower.includes('carousel')) {
+            parts.push('carousel sizing');
+        } else if (flexLower.match(/\d+.*\d+/)) {
+            parts.push('responsive');
+        }
+
+        return parts.join(' · ') || '';
+    }
+
+    function humanizeDimText(text) {
+        if (!text) return text;
+        return text
+            .replace(/^h=(\d+)(px|pt)\s*\/\s*h=(\d+)(px|pt)/i, 'Height locked · $1$2 / $3$4')
+            .replace(/^h=(\d+)(px|pt)/i, 'Height locked · $1$2')
+            .replace(/^width=full-bleed/i, 'Full-width')
+            .replace(/^width=2\/3\s*screen/i, 'Width: ⅔ screen')
+            .replace(/^width=container/i, 'Width adapts')
+            .replace(/height\s*\(scroll-driven\)/i, 'Height adapts')
+            .replace(/both\s*\(carousel\)/i, 'Size adapts')
+            .replace(/^both$/i, 'Size adapts')
+            .replace(/(\d+)[–\-](\d+)(px|pt)\s*\(breakpoints?\)/i, '$1$3 mobile · $2$3 desktop')
+            .replace(/^width\s+(\d+)[–\-](\d+)(px|pt)/i, 'Width: $1–$2$3');
+    }
+
     function getDimChips(surface) {
         const chips = [];
-        const fixed = (surface.fixedDim || '').toLowerCase();
-        const flex = (surface.flexDim || '').toLowerCase();
-        const isBothFixed = fixed === 'both';
-        const isBothFlex = flex === 'both';
-        if (isBothFixed) return [{ kind: 'fixed', text: 'Fixed px' }];
-        if (fixed && fixed !== '—' && fixed !== 'both') {
-            chips.push({ kind: 'fixed', text: surface.fixedDim });
+        const fixed = (surface.fixedDim || '').trim();
+        const flex = (surface.flexDim || '').trim();
+        const fixedLower = fixed.toLowerCase();
+        const flexLower = flex.toLowerCase();
+        if (fixedLower === 'both') return [{ kind: 'fixed', text: 'Fixed size' }];
+        if (fixed && fixed !== '—' && fixedLower !== 'both') {
+            chips.push({ kind: 'fixed', text: humanizeDimText(fixed) });
         }
-        if (flex && flex !== '—' && flex !== 'both') {
-            chips.push({ kind: 'flex', text: surface.flexDim });
+        if (flex && flex !== '—' && flexLower !== 'both') {
+            chips.push({ kind: 'flex', text: humanizeDimText(flex) });
         }
         return chips;
     }
@@ -287,22 +453,24 @@
         const mode = safeZoneSelect ? safeZoneSelect.value : 'off';
         if (mode === 'off') return null;
 
-        const sourceW = 1200;
-        const sourceH = 800;
+        const sourceW = sourceWidth || 1200;
+        const sourceH = sourceHeight || 800;
 
         // Visible portion of source after center crop
-        const visibleWPx = targetRatio >= SOURCE_RATIO ? sourceW : sourceW * (targetRatio / SOURCE_RATIO);
-        const visibleHPx = targetRatio >= SOURCE_RATIO ? sourceW / targetRatio : sourceH;
+        const visibleWPx = targetRatio >= sourceRatio ? sourceW : sourceW * (targetRatio / sourceRatio);
+        const visibleHPx = targetRatio >= sourceRatio ? sourceW / targetRatio : sourceH;
         const visibleLeftPx = (sourceW - visibleWPx) / 2;
         const visibleTopPx = (sourceH - visibleHPx) / 2;
 
         let safeLeft, safeRight, safeTop, safeBottom;
+        var scaleX = sourceW / 1200;
+        var scaleY = sourceH / 800;
         if (mode === 'conservative') {
-            safeLeft = 200; safeRight = 1000; safeTop = 120; safeBottom = 680;
+            safeLeft = 200 * scaleX; safeRight = 1000 * scaleX; safeTop = 120 * scaleY; safeBottom = 680 * scaleY;
         } else if (mode === 'usable') {
-            safeLeft = 66; safeRight = 1134; safeTop = 60; safeBottom = 740;
+            safeLeft = 66 * scaleX; safeRight = 1134 * scaleX; safeTop = 60 * scaleY; safeBottom = 740 * scaleY;
         } else if (mode === 'survival') {
-            safeLeft = 333; safeRight = 867; safeTop = 0; safeBottom = 800;
+            safeLeft = 333 * scaleX; safeRight = 867 * scaleX; safeTop = 0; safeBottom = sourceH;
         } else {
             return null;
         }
@@ -331,30 +499,42 @@
         const severity = lossSeverity(pct);
         const chips = getDimChips(surface);
         const platformLabel = getPlatformBadges(surface.platform);
-        const ratioClean = surface.ratioRaw.replace(/\*\*/g, '');
+        const ratioClean = surface.ratioRaw.replace(/\*\*/g, '').replace(/\s*(portrait|landscape|wide)\s*/gi, '').trim();
         const portrait = isPortrait(displayRatio);
         const imgSrc = imageUrl || DEMO_IMAGE;
+
+        // Build dynamic source ratio label
+        var sourceRatioLabel = '3:2';
+        for (var k = 0; k < STANDARD_RATIOS.length; k++) {
+            if (Math.abs(sourceRatio - STANDARD_RATIOS[k].decimal) < 0.03) {
+                sourceRatioLabel = STANDARD_RATIOS[k].label;
+                break;
+            }
+        }
+        if (sourceRatioLabel === '3:2' && Math.abs(sourceRatio - DEFAULT_SOURCE_RATIO) >= 0.03) {
+            sourceRatioLabel = sourceRatio.toFixed(2) + ':1';
+        }
 
         // Safe zone explanation for this surface
         const safeZoneNotes = [];
         const hPct = heightVisiblePct(displayRatio);
         if (portrait) {
-            safeZoneNotes.push('⚠️ Portrait surface: a 3:2 landscape source loses <strong>' + (100 - pct) + '% of its width</strong> in a center crop. Only the central ' + pct + '% of width survives.');
-            safeZoneNotes.push('To guarantee subject visibility, all key content must fall within the central <strong>' + Math.round(1200 * (displayRatio / SOURCE_RATIO)) + 'px</strong> of the 1200px source width.');
+            safeZoneNotes.push('⚠️ Portrait surface: a ' + sourceRatioLabel + ' source loses <strong>' + (100 - pct) + '% of its width</strong> in a center crop. Only the central ' + pct + '% of width survives.');
+            safeZoneNotes.push('To guarantee subject visibility, all key content must fall within the central <strong>' + Math.round((sourceWidth || 1200) * (displayRatio / sourceRatio)) + 'px</strong> of the ' + (sourceWidth || 1200) + 'px source width.');
             safeZoneNotes.push('The Conservative (800px usable) and Usable (1068px) safe zones both extend well beyond this limit — neither protects content from a portrait crop.');
         } else if (hPct < 100) {
             safeZoneNotes.push('⚠️ Wide surface: full source width is visible, but only <strong>' + hPct + '% of height</strong> survives a center crop. Content near the top or bottom of the frame will be clipped.');
         } else if (pct < 100) {
             safeZoneNotes.push('Some horizontal cropping occurs (' + pct + '% width visible). Subject should be centred.');
         } else {
-            safeZoneNotes.push('Full source is visible — this surface exactly matches the 3:2 source ratio.');
+            safeZoneNotes.push('Full source is visible — this surface exactly matches the ' + sourceRatioLabel + ' source ratio.');
         }
 
         const range = parseFlexRange(surface.flexDim);
         const rangeHtml = range ? range.min + range.unit + ' – ' + range.max + range.unit : null;
 
         const fixedFlexHtml = chips.length > 0
-            ? chips.map(c => '<span class="dim-chip dim-chip-' + c.kind + '">' + (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text + '</span>').join(' ')
+            ? chips.map(c => '<span class="dim-chip dim-chip-' + c.kind + '">' + c.text + '</span>').join(' ')
             : '<span class="detail-value">Both dimensions fixed</span>';
 
         const labelsHtml = surface.hasLabel
@@ -375,9 +555,9 @@
                     <div class="detail-image-container" style="padding-bottom:${(1 / displayRatio * 100)}%">
                         <img src="${imgSrc}" alt="${surface.name}">
                         ${surface.hasLabel && surface.labelPosition !== '—' ? renderLabelSlotsHtml(surface.labelPosition) : ''}
-                        <div class="loss-badge loss-${severity}">${hPct < 100 ? hPct + '% height' : pct + '% width'}</div>
+                        <div class="loss-badge loss-${severity} loss-badge--split">${cropLossText(pct, hPct).split(' · ').map((p,i) => i===0 ? '<span class="loss-badge-visible">'+p+'</span>' : '<span class="loss-badge-dir">'+p+'</span>').join('')}</div>
                     </div>
-                    <p class="detail-ratio-label">${ratioClean}${portrait ? ' · <span class="badge-portrait">Portrait</span>' : ''}</p>
+                    <p class="detail-ratio-label">${ratioClean} <span class="detail-orientation">${getRatioOrientation(displayRatio)}</span></p>
                 </div>
                 <div class="detail-title-col">
                     <h2 class="detail-name">${surface.name}</h2>
@@ -400,10 +580,11 @@
                 <div class="detail-section">
                     <h3>Crop behaviour</h3>
                     <dl>
-                        <dt>Crop mode</dt><dd>Center crop (all platforms)</dd>
-                        <dt>Width visible</dt><dd><span class="loss-badge-inline loss-${severity}">${pct}%</span></dd>
-                        <dt>Width lost</dt><dd>${100 - pct}%</dd>
-                        ${hPct < 100 ? '<dt>Height visible</dt><dd><span class="loss-badge-inline loss-' + lossSeverity(hPct) + '">' + hPct + '%</span></dd><dt>Height lost</dt><dd>' + (100 - hPct) + '%</dd>' : ''}
+                        <dt>Crop mode</dt><dd>Center crop — edges clipped, never stretched</dd>
+                        ${hPct < 100
+                            ? '<dt>Top & bottom cropped</dt><dd><span class="loss-badge-inline loss-' + lossSeverity(hPct) + '">' + (100 - hPct) + '%</span></dd><dt>Height retained</dt><dd>' + hPct + '%</dd>'
+                            : '<dt>Sides cropped</dt><dd><span class="loss-badge-inline loss-' + severity + '">' + (100 - pct) + '%</span></dd><dt>Width retained</dt><dd>' + pct + '%</dd>'
+                        }
                     </dl>
                 </div>
 
@@ -433,14 +614,14 @@
                 </div>
 
                 <div class="detail-section detail-section-full">
-                    <h3>Creative requirements</h3>
+                    <h3>Composition guidance</h3>
                     <ul class="detail-checklist">
-                        ${portrait ? '<li class="checklist-warn">Portrait surface — subject must be centred within the middle ' + pct + '% of source width. Landscape compositions will lose the subject.</li>' : ''}
-                        ${hPct < 100 ? '<li class="checklist-warn">Wide surface — only ' + hPct + '% of source height is visible. Content near the top or bottom edge (garnishes, hands, table surface) will be clipped. Keep subject in the vertical centre.</li>' : ''}
-                        ${chips.some(c => c.kind === 'flex') ? '<li class="checklist-warn">Flexible dimension — container width varies. Compose for the narrowest expected viewport; wide platings or edge-anchored props will be cropped unpredictably.</li>' : ''}
-                        ${surface.hasLabel ? '<li class="checklist-info">UI elements appear at: ' + surface.labelPosition + '. Keep these areas free of key text, faces, or plating details.</li>' : ''}
-                        <li>All crops use center crop — no stretching or distortion. Only edges are lost.</li>
-                        <li>Source minimum: 1200×800px at 3:2. sRGB, JPG, no alpha channel.</li>
+                        ${portrait ? '<li class="checklist-warn">This is a <strong>portrait crop</strong> — only the centre ' + pct + '% of your source width will be visible. Keep the hero subject, faces, and key ingredients within the centre third of the frame. Anything near the left or right edge will be cut.</li>' : ''}
+                        ${hPct < 100 ? '<li class="checklist-warn">This is a <strong>wide crop</strong> — ' + (100-hPct) + '% of the top and bottom will be cut. Garnishes on the plate edge, hands, and table surface may disappear. Keep key visual elements in the vertical centre.</li>' : ''}
+                        ${chips.some(c => c.kind === 'flex') ? '<li class="checklist-warn">This surface <strong>changes width across devices</strong>. Compose for the most cropped state — avoid edge-anchored elements like props at the sides of the frame.</li>' : ''}
+                        ${surface.hasLabel ? '<li class="checklist-info">App labels appear at: <strong>' + surface.labelPosition + '</strong>. Leave those areas clear of faces, logos, or important plating details.</li>' : ''}
+                        <li>Crop is always centred — the middle of your photo is always preserved. Only the outer edges are removed.</li>
+                        <li>Deliver at minimum 1200×800px, 3:2, sRGB, JPG.</li>
                     </ul>
                 </div>
             </div>
@@ -521,25 +702,23 @@
             const meta = document.createElement('div');
             meta.className = 'tile-meta';
 
-            const portraitBadge = isPortrait(displayRatio)
-                ? '<span class="badge-portrait">Portrait</span>'
-                : '';
-            const journeyBadge = surface.journey && surface.journey !== '—'
-                ? '<span class="badge-journey">' + surface.journey + '</span>'
-                : '';
+            const ratioInfo = formatRatioInfo(displayRatio, surface);
+            const sizeCtx = getSizeContext(surface);
 
             const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
-            const lossBadge = hPctTile < 100
-                ? '<span class="loss-badge-inline loss-' + lossSeverity(hPctTile) + '">' + hPctTile + '% height</span>'
-                : '<span class="loss-badge-inline loss-' + lossSeverity(pct) + '">' + pct + '% width</span>';
+            const lossSev = lossSeverity(hPctTile < 100 ? hPctTile : pct);
+            const lossBadge = cropLossBadgeHtml(pct, hPctTile, 'loss-' + lossSev);
             meta.innerHTML = `
-                <div class="empty-label-name">${truncName}${portraitBadge}
-                    <span class="empty-label-ratio">${formatRatio(displayRatio)}</span>
+                <div class="empty-label-name">${truncName}
+                    <span class="empty-label-ratio">${ratioInfo.pill}</span>
                 </div>
+                ${sizeCtx ? '<div class="tile-size-context">' + sizeCtx + '</div>' : ''}
                 <div class="empty-label-meta">
                     ${getPlatformBadges(surface.platform)}
+                    <span class="tile-orientation">${ratioInfo.orientation}</span>
                     ${lossBadge}
                 </div>
+                ${ratioInfo.subtext ? '<div class="tile-ratio-subtext">' + ratioInfo.subtext + '</div>' : ''}
             `;
 
             const chips = getDimChips(surface);
@@ -549,7 +728,7 @@
                 chips.forEach(c => {
                     const chip = document.createElement('span');
                     chip.className = 'dim-chip dim-chip-' + c.kind;
-                    chip.textContent = (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text;
+                    chip.textContent = c.text;
                     chipRow.appendChild(chip);
                 });
                 meta.appendChild(chipRow);
@@ -581,6 +760,25 @@
         const showLabels = showLabelsCheckbox ? showLabelsCheckbox.checked : true;
 
         countEl.textContent = filtered.length;
+
+        var headingEl = document.querySelector('.empty-heading');
+        if (headingEl) {
+            var ratioLabel = '3:2';
+            if (sourceWidth && sourceHeight) {
+                for (var i = 0; i < STANDARD_RATIOS.length; i++) {
+                    if (Math.abs(sourceRatio - STANDARD_RATIOS[i].decimal) < 0.03) {
+                        ratioLabel = STANDARD_RATIOS[i].label;
+                        break;
+                    }
+                }
+                if (ratioLabel === '3:2' && Math.abs(sourceRatio - DEFAULT_SOURCE_RATIO) >= 0.03) {
+                    ratioLabel = sourceRatio.toFixed(2) + ':1';
+                }
+            }
+            var suffix = imageUrl ? '' : ' Upload a photo to see the impact.';
+            headingEl.innerHTML = 'Your <strong>' + ratioLabel + '</strong> source ships at <strong id="surface-count">' + filtered.length + '</strong> different crop shapes.' + suffix;
+        }
+
         container.innerHTML = '';
 
         filtered.forEach(surface => {
@@ -614,18 +812,19 @@
 
             const pct = widthVisiblePct(displayRatioG);
             const hPctGrid = heightVisiblePct(displayRatioG);
-            const lossLabel = hPctGrid < 100
-                ? '<span class="loss-badge-inline loss-' + lossSeverity(hPctGrid) + '">' + hPctGrid + '% height</span>'
-                : '<span class="loss-badge-inline loss-' + lossSeverity(pct) + '">' + pct + '% width</span>';
+            const lossSevG = lossSeverity(hPctGrid < 100 ? hPctGrid : pct);
+            const lossLabel = cropLossBadgeHtml(pct, hPctGrid, 'loss-' + lossSevG);
 
             const label = document.createElement('div');
             label.className = 'empty-label';
 
             const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
+            const ratioInfoG = formatRatioInfo(displayRatioG, surface);
             label.innerHTML = '<span class="empty-label-name">' + truncName
-                    + ' <span class="empty-label-ratio">' + formatRatio(displayRatioG) + '</span></span>'
+                    + ' <span class="empty-label-ratio">' + ratioInfoG.pill + '</span></span>'
                 + '<span class="empty-label-meta">'
                 + getPlatformBadges(surface.platform)
+                + '<span class="tile-orientation">' + ratioInfoG.orientation + '</span>'
                 + lossLabel
                 + '</span>';
 
@@ -637,7 +836,7 @@
                 chips.forEach(c => {
                     const chip = document.createElement('span');
                     chip.className = 'dim-chip dim-chip-' + c.kind;
-                    chip.textContent = (c.kind === 'fixed' ? '🔒 ' : '↔ ') + c.text;
+                    chip.textContent = c.text;
                     chipRow.appendChild(chip);
                 });
                 card.appendChild(shape);
@@ -682,7 +881,7 @@
         html += '</tr></thead><tbody>';
 
         filtered.forEach(surface => {
-            const ratioClean = surface.ratioRaw.replace(/\*\*/g, '');
+            const ratioClean = surface.ratioRaw.replace(/\*\*/g, '').replace(/\s*(portrait|landscape|wide)\s*/gi, '').trim();
             const labelInfo = surface.hasLabel ? surface.labelPosition : '—';
             const notes = [];
             if (ratioClean.toLowerCase().includes('dynamic') || ratioClean.toLowerCase().includes('fluid') || ratioClean.toLowerCase().includes('variable')) {
@@ -697,7 +896,6 @@
 
             const pct = widthVisiblePct(specDisplayRatio);
             const hPctSpec = heightVisiblePct(specDisplayRatio);
-            const lossText = hPctSpec < 100 ? hPctSpec + '% height' : pct + '% width';
             const lossClass = 'loss-' + lossSeverity(hPctSpec < 100 ? hPctSpec : pct);
 
             const priority = surface.priority || '—';
@@ -710,26 +908,21 @@
             html += '<td>' + getPlatformBadges(surface.platform) + '</td>';
             html += '<td>' + journey + '</td>';
             html += '<td>' + ratioClean + '</td>';
-            html += '<td><span class="loss-badge-inline ' + lossClass + '">' + lossText + '</span></td>';
+            html += '<td>' + cropLossBadgeHtml(pct, hPctSpec, lossClass) + '</td>';
             const chips = getDimChips(surface);
-            const bpMatch = (surface.flexDim || '').match(/(\d+)[–\-](\d+)(px|pt).*breakpoint/i);
             const fixedChips = chips.filter(c => c.kind === 'fixed');
             const flexChips  = chips.filter(c => c.kind === 'flex');
             const fixedHtml = fixedChips.length
                 ? fixedChips.map(c => '<span class="dim-chip dim-chip-fixed">' + c.text + '</span>').join(' ')
                 : '<span style="color:var(--color-foreground-secondary);font-size:0.7rem">—</span>';
-            let flexHtml = flexChips.length
+            const flexHtml = flexChips.length
                 ? flexChips.map(c => '<span class="dim-chip dim-chip-flex">' + c.text + '</span>').join(' ')
                 : '<span style="color:var(--color-foreground-secondary);font-size:0.7rem">—</span>';
-            if (bpMatch) {
-                flexHtml = '<span class="dim-chip dim-chip-fixed">' + bpMatch[1] + bpMatch[3] + ' &lt;768px</span>'
-                         + ' <span class="dim-chip dim-chip-fixed">' + bpMatch[2] + bpMatch[3] + ' ≥768px</span>';
-            }
             html += '<td>' + fixedHtml + '</td>';
             html += '<td>' + flexHtml + '</td>';
             var ratioRange = computeRatioRange(surface);
             var ratioRangeText = ratioRange
-                ? (ratioRange.single ? formatRatio(ratioRange.min) : formatRatio(ratioRange.min) + ' – ' + formatRatio(ratioRange.max))
+                ? (ratioRange.single ? formatRatio(ratioRange.min, surface) : formatRatio(ratioRange.min, surface) + ' – ' + formatRatio(ratioRange.max, surface))
                 : '—';
             html += '<td class="spec-range">' + ratioRangeText + '</td>';
             html += '<td>' + surface.resolution + '</td>';
@@ -761,17 +954,98 @@
     function handleImage(file) {
         if (!file || !file.type.startsWith('image/')) return;
 
+        closeModal();
+
         const reader = new FileReader();
         reader.onload = function (e) {
             imageUrl = e.target.result;
-            closeModal();
-            controls.classList.remove('hidden');
+
+            var probe = new Image();
+            probe.onload = function () {
+                sourceWidth = probe.naturalWidth;
+                sourceHeight = probe.naturalHeight;
+                sourceRatio = (sourceWidth > 0 && sourceHeight > 0)
+                    ? sourceWidth / sourceHeight
+                    : DEFAULT_SOURCE_RATIO;
+                onImageReady();
+            };
+            probe.onerror = function () {
+                sourceWidth = null;
+                sourceHeight = null;
+                sourceRatio = DEFAULT_SOURCE_RATIO;
+                onImageReady();
+            };
+            probe.src = imageUrl;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function onImageReady() {
+        controls.classList.remove('hidden');
+        updateSourceIndicator();
+        applySimView();
+        renderTiles();
+        renderEmptyState();
+        renderSpecsTable();
+        updateContextImages();
+    }
+
+    function updateSourceIndicator() {
+        var el = document.getElementById('source-indicator');
+        if (!el) return;
+
+        if (!sourceWidth || !sourceHeight || !imageUrl) {
+            el.classList.remove('hidden');
+            el.classList.add('source-indicator--default');
+            el.innerHTML = '<span class="source-indicator-ratio">3:2</span>'
+                + '<span class="source-indicator-dims">1200×800</span>'
+                + '<span class="source-indicator-orientation">LANDSCAPE</span>'
+                + '<span class="source-indicator-default-tag">default</span>';
+            return;
+        }
+
+        el.classList.remove('source-indicator--default');
+
+        var ratioLabel = '';
+        for (var i = 0; i < STANDARD_RATIOS.length; i++) {
+            if (Math.abs(sourceRatio - STANDARD_RATIOS[i].decimal) < 0.03) {
+                ratioLabel = STANDARD_RATIOS[i].label;
+                break;
+            }
+        }
+        if (!ratioLabel) {
+            ratioLabel = sourceRatio.toFixed(2) + ':1';
+        }
+
+        var orientation = getRatioOrientation(sourceRatio);
+        var isNotDefault = Math.abs(sourceRatio - DEFAULT_SOURCE_RATIO) >= 0.03;
+
+        var html = '<img class="source-indicator-thumb" src="' + imageUrl + '" alt="Source photo">';
+        html += '<span class="source-indicator-ratio">' + ratioLabel + '</span>';
+        html += '<span class="source-indicator-dims">' + sourceWidth + '×' + sourceHeight + '</span>';
+        html += '<span class="source-indicator-orientation">' + orientation + '</span>';
+
+        if (isNotDefault) {
+            html += '<span class="source-indicator-warning" title="Recommended shooting format is 3:2. Loss values adjusted to your actual source.">Not 3:2</span>';
+        }
+
+        html += '<button class="source-indicator-close" title="Remove photo">×</button>';
+
+        el.innerHTML = html;
+        el.classList.remove('hidden');
+
+        el.querySelector('.source-indicator-close').onclick = function () {
+            imageUrl = '';
+            sourceWidth = null;
+            sourceHeight = null;
+            sourceRatio = DEFAULT_SOURCE_RATIO;
+            updateSourceIndicator();
             applySimView();
             renderTiles();
             renderEmptyState();
+            renderSpecsTable();
             updateContextImages();
         };
-        reader.readAsDataURL(file);
     }
 
     function openModal() {
@@ -865,8 +1139,10 @@
         viewSimulator.classList.toggle('hidden', view !== 'simulator');
         viewSpecs.classList.toggle('hidden', view !== 'specs');
         viewContext.classList.toggle('hidden', view !== 'context');
+        if (viewRecommendation) viewRecommendation.classList.toggle('hidden', view !== 'recommendation');
         if (view === 'context') updateContextImages();
         if (view === 'specs') renderSpecsTable();
+        if (view === 'recommendation') renderRecommendation();
     });
 
     // Specs view filter tabs
@@ -956,6 +1232,7 @@
         .then(r => r.text())
         .then(md => {
             surfaces = parseSurfacesTable(md);
+            updateSourceIndicator();
             applySimView();
             renderEmptyState();
             renderTiles();
@@ -964,6 +1241,7 @@
         })
         .catch(() => {
             surfaces = getFallbackSurfaces();
+            updateSourceIndicator();
             applySimView();
             renderEmptyState();
             renderTiles();
@@ -999,4 +1277,155 @@
             { name: 'Mobile Menu — past delivery', platform: 'mobile (rn)', ratioRaw: 'Fluid × 240h', ratio: 4/3, resolution: 'h=240', hasLabel: true, labelPosition: 'Top-left', source: '' },
         ];
     }
+
+    // === RECOMMENDATION TAB ===
+
+    var CANDIDATE_FORMATS = [
+        { ratio: 3/2, label: '3:2' },
+        { ratio: 2/3, label: '2:3' },
+        { ratio: 1/1, label: '1:1' },
+        { ratio: 16/9, label: '16:9' },
+        { ratio: 4/3, label: '4:3' },
+        { ratio: 5/3, label: '5:3' },
+    ];
+
+    function cropLossForPair(sourceRatio, targetRatio) {
+        if (targetRatio >= sourceRatio) {
+            return 100 - Math.round((sourceRatio / targetRatio) * 100);
+        }
+        return 100 - Math.round((targetRatio / sourceRatio) * 100);
+    }
+
+    function bestFormatForSurface(surfaceRatio, formats) {
+        var best = null;
+        var bestLoss = 100;
+        for (var i = 0; i < formats.length; i++) {
+            var loss = cropLossForPair(formats[i].ratio, surfaceRatio);
+            if (loss < bestLoss) {
+                bestLoss = loss;
+                best = formats[i];
+            }
+        }
+        return { format: best, loss: bestLoss };
+    }
+
+    function computeRecommendation(formatCount) {
+        var p0 = surfaces.filter(function(s) { return (s.priority || '').toLowerCase() === 'p0'; });
+        if (p0.length === 0) p0 = surfaces;
+
+        if (formatCount === 1) {
+            var results = CANDIDATE_FORMATS.map(function(fmt) {
+                var maxLoss = 0;
+                var avgLoss = 0;
+                var assignments = p0.map(function(s) {
+                    var r = getDisplayRatio(s);
+                    var loss = cropLossForPair(fmt.ratio, r);
+                    if (loss > maxLoss) maxLoss = loss;
+                    avgLoss += loss;
+                    return { surface: s, format: fmt, loss: loss };
+                });
+                return { formats: [fmt], maxLoss: maxLoss, avgLoss: avgLoss / p0.length, assignments: assignments };
+            });
+            results.sort(function(a, b) { return a.avgLoss - b.avgLoss; });
+            return results[0];
+        }
+
+        var bestResult = null;
+        for (var i = 0; i < CANDIDATE_FORMATS.length; i++) {
+            for (var j = i + 1; j < CANDIDATE_FORMATS.length; j++) {
+                var pair = [CANDIDATE_FORMATS[i], CANDIDATE_FORMATS[j]];
+                var maxLoss = 0;
+                var avgLoss = 0;
+                var assignments = p0.map(function(s) {
+                    var r = getDisplayRatio(s);
+                    var pick = bestFormatForSurface(r, pair);
+                    if (pick.loss > maxLoss) maxLoss = pick.loss;
+                    avgLoss += pick.loss;
+                    return { surface: s, format: pick.format, loss: pick.loss };
+                });
+                avgLoss = avgLoss / p0.length;
+                if (!bestResult || avgLoss < bestResult.avgLoss) {
+                    bestResult = { formats: pair, maxLoss: maxLoss, avgLoss: avgLoss, assignments: assignments };
+                }
+            }
+        }
+        return bestResult;
+    }
+
+    var recoFormatCount = 2;
+
+    function renderRecommendation() {
+        if (!surfaces.length) return;
+        var result = computeRecommendation(recoFormatCount);
+        if (!result) return;
+
+        var winnerEl = document.getElementById('reco-winner');
+        var compEl = document.getElementById('reco-comparison');
+        var tableEl = document.getElementById('reco-coverage-table');
+
+        var formatLabels = result.formats.map(function(f) { return '<strong>' + f.label + '</strong>'; }).join(' + ');
+        winnerEl.innerHTML = '<div class="reco-winner-card">'
+            + '<div class="reco-winner-label">Shoot in</div>'
+            + '<div class="reco-winner-formats">' + formatLabels + '</div>'
+            + '<div class="reco-winner-stats">'
+            + '<span class="reco-stat">Avg loss: <strong>' + Math.round(result.avgLoss) + '%</strong></span>'
+            + '<span class="reco-stat">Worst case: <strong>' + result.maxLoss + '%</strong></span>'
+            + '</div>'
+            + '</div>';
+
+        var greenMulti = result.assignments.filter(function(a) { return a.loss <= 20; }).length;
+        var totalSurfaces = result.assignments.length;
+
+        if (recoFormatCount > 1) {
+            var single = computeRecommendation(1);
+            var greenSingle = single.assignments.filter(function(a) { return a.loss <= 20; }).length;
+            compEl.innerHTML = '<div class="reco-comparison-grid">'
+                + '<div class="reco-comp-card">'
+                + '<div class="reco-comp-title">Single format (' + single.formats[0].label + ')</div>'
+                + '<div class="reco-comp-metric">' + greenSingle + '/' + totalSurfaces + ' surfaces with &lt;20% loss</div>'
+                + '<div class="reco-comp-metric">Avg: ' + Math.round(single.avgLoss) + '% loss</div>'
+                + '</div>'
+                + '<div class="reco-comp-card reco-comp-winner">'
+                + '<div class="reco-comp-title">' + recoFormatCount + ' formats (' + result.formats.map(function(f){return f.label;}).join(' + ') + ')</div>'
+                + '<div class="reco-comp-metric">' + greenMulti + '/' + totalSurfaces + ' surfaces with &lt;20% loss</div>'
+                + '<div class="reco-comp-metric">Avg: ' + Math.round(result.avgLoss) + '% loss</div>'
+                + '</div>'
+                + '</div>';
+        } else {
+            compEl.innerHTML = '<div class="reco-comparison-grid">'
+                + '<div class="reco-comp-card">'
+                + '<div class="reco-comp-metric">' + greenMulti + '/' + totalSurfaces + ' P0 surfaces with &lt;20% loss</div>'
+                + '<div class="reco-comp-metric">Worst case: ' + result.maxLoss + '% loss on portrait/wide surfaces</div>'
+                + '</div>'
+                + '</div>';
+        }
+
+        var rows = result.assignments.sort(function(a, b) { return a.loss - b.loss; }).map(function(a) {
+            var severity = a.loss <= 20 ? 'good' : (a.loss <= 40 ? 'warn' : 'bad');
+            return '<tr>'
+                + '<td>' + a.surface.name + '</td>'
+                + '<td><span class="reco-format-chip">' + a.format.label + '</span></td>'
+                + '<td><span class="loss-badge-inline loss-' + severity + '">' + a.loss + '% loss</span></td>'
+                + '</tr>';
+        }).join('');
+
+        tableEl.innerHTML = '<table class="reco-table">'
+            + '<thead><tr><th>Surface (P0)</th><th>Assigned format</th><th>Crop loss</th></tr></thead>'
+            + '<tbody>' + rows + '</tbody>'
+            + '</table>';
+    }
+
+    // Recommendation toggle
+    var recoToggle = document.querySelector('.reco-toggle');
+    if (recoToggle) {
+        recoToggle.addEventListener('click', function(e) {
+            var btn = e.target.closest('.reco-toggle-btn');
+            if (!btn) return;
+            recoToggle.querySelectorAll('.reco-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            recoFormatCount = parseInt(btn.dataset.formats);
+            renderRecommendation();
+        });
+    }
+
 })();
