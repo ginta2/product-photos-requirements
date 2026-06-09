@@ -27,7 +27,6 @@
 | Customization — recipe thumbnail | iOS | 1:1 | 72×72pt | No | — | P1 | both | — | Confirmation | `CustomizationAndPairingFeature/.../CustomizationAndPairingDrawerView.swift:92` |
 | Recipe Detail — header (parallax) | iOS | Variable (full-width parallax) | min height 220pt | No | — | P0 | width=full-bleed | height (scroll-driven) | Cooking | `ProductUIComponents/.../ProductHeaderViewDetailsStyle.swift:38` |
 | Past Orders Rating — v1 | iOS | 5:3 | full-width × 200pt | No | — | P1 | h=200pt | width=full-bleed | Post-meal | `UserRatingFeature/.../RecipeCardHeaderView.swift:54` |
-| Past Orders Rating — v2 (new) | iOS | **2:3 portrait** | floor(2/3 screen width) square-ish | No | — | P0 | width=2/3 screen | — | Post-meal | `UserRatingFeature/.../RecipeCardHeaderView.swift:62-63` |
 | Add-on / Food Item Carousel | iOS | ~5:7 (~0.68:0.95) | scales with carousel height | No | — | P2 | — | both (carousel) | Selection | `FoodItemCarousel/.../FoodItemsCarouselView.swift:74` |
 | Recipe Ingredient thumbnail | iOS | 1:1 | 120×120pt | No | — | P2 | both | — | Cooking | `RecipeIngredientCell.swift:63` |
 | Cookbook — "Meals from your box" carousel | iOS / Android | **2:3 portrait** | 160w × 240h | Yes | Bottom-right (time pill) | P0 | both | — | Discovery | `src/features/this-weeks-box-widget/styles.ts` (`aspectRatio: 2/3`) |

@@ -2101,3 +2101,88 @@ select {
     margin-left: 0.1rem;
 }
 .source-indicator-close:hover { opacity: 1; }
+
+/* === TILE 3-TIER HIERARCHY === */
+.tile-primary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+.tile-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-foreground-primary);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+.tile-primary .loss-badge-inline { flex-shrink: 0; }
+.tile-primary .loss-badge-direction { flex-shrink: 0; }
+.tile-secondary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+.tile-ratio-pill {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+    background: var(--color-foreground-primary);
+    color: var(--color-foreground-inverse);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.tile-dim-summary {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-foreground-secondary);
+}
+.tile-tertiary {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* Grid card: loss overlaid on image */
+.card-loss {
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0.15rem 0.35rem;
+    border-radius: var(--radius-xs);
+    color: var(--color-foreground-inverse);
+    z-index: 3;
+    pointer-events: none;
+}
+.card-loss--good { background: rgba(54, 157, 94, 0.9); }
+.card-loss--warn { background: rgba(193, 119, 57, 0.9); }
+.card-loss--bad  { background: rgba(255, 74, 106, 0.9); }
+
+/* Grid card: simplified meta */
+.card-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-foreground-primary);
+    line-height: 1.3;
+    margin-bottom: 0.3rem;
+}
+.card-ratio-pill {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.12rem 0.35rem;
+    border-radius: var(--radius-xs);
+    background: var(--color-foreground-primary);
+    color: var(--color-foreground-inverse);
+}

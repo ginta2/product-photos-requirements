@@ -703,36 +703,23 @@
             meta.className = 'tile-meta';
 
             const ratioInfo = formatRatioInfo(displayRatio, surface);
-            const sizeCtx = getSizeContext(surface);
-
+            const dimSummary = getDimSummary(surface);
             const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
             const lossSev = lossSeverity(hPctTile < 100 ? hPctTile : pct);
             const lossBadge = cropLossBadgeHtml(pct, hPctTile, 'loss-' + lossSev);
             meta.innerHTML = `
-                <div class="empty-label-name">${truncName}
-                    <span class="empty-label-ratio">${ratioInfo.pill}</span>
-                </div>
-                ${sizeCtx ? '<div class="tile-size-context">' + sizeCtx + '</div>' : ''}
-                <div class="empty-label-meta">
-                    ${getPlatformBadges(surface.platform)}
-                    <span class="tile-orientation">${ratioInfo.orientation}</span>
+                <div class="tile-primary">
+                    <span class="tile-name">${truncName}</span>
                     ${lossBadge}
                 </div>
-                ${ratioInfo.subtext ? '<div class="tile-ratio-subtext">' + ratioInfo.subtext + '</div>' : ''}
+                <div class="tile-secondary">
+                    <span class="tile-ratio-pill">${ratioInfo.pill}</span>
+                    ${dimSummary ? '<span class="tile-dim-summary">' + dimSummary + '</span>' : ''}
+                </div>
+                <div class="tile-tertiary">
+                    ${getPlatformBadges(surface.platform)}
+                </div>
             `;
-
-            const chips = getDimChips(surface);
-            if (chips.length > 0) {
-                const chipRow = document.createElement('div');
-                chipRow.className = 'empty-dim-chips';
-                chips.forEach(c => {
-                    const chip = document.createElement('span');
-                    chip.className = 'dim-chip dim-chip-' + c.kind;
-                    chip.textContent = c.text;
-                    chipRow.appendChild(chip);
-                });
-                meta.appendChild(chipRow);
-            }
 
             tile.style.cursor = 'pointer';
             tile.addEventListener('click', function () { openDetailModal(surface); });
@@ -813,39 +800,25 @@
             const pct = widthVisiblePct(displayRatioG);
             const hPctGrid = heightVisiblePct(displayRatioG);
             const lossSevG = lossSeverity(hPctGrid < 100 ? hPctGrid : pct);
-            const lossLabel = cropLossBadgeHtml(pct, hPctGrid, 'loss-' + lossSevG);
+            const lossTextG = cropLossText(pct, hPctGrid);
+
+            if (lossTextG !== 'Full frame') {
+                const lossBadgeEl = document.createElement('span');
+                lossBadgeEl.className = 'card-loss card-loss--' + lossSevG;
+                lossBadgeEl.textContent = lossTextG.split(' · ')[0];
+                shape.appendChild(lossBadgeEl);
+            }
 
             const label = document.createElement('div');
             label.className = 'empty-label';
 
             const truncName = surface.name.length > 72 ? surface.name.slice(0, 72) + '…' : surface.name;
             const ratioInfoG = formatRatioInfo(displayRatioG, surface);
-            label.innerHTML = '<span class="empty-label-name">' + truncName
-                    + ' <span class="empty-label-ratio">' + ratioInfoG.pill + '</span></span>'
-                + '<span class="empty-label-meta">'
-                + getPlatformBadges(surface.platform)
-                + '<span class="tile-orientation">' + ratioInfoG.orientation + '</span>'
-                + lossLabel
-                + '</span>';
+            label.innerHTML = '<span class="card-name">' + truncName
+                + '</span><span class="card-ratio-pill">' + ratioInfoG.pill + '</span>';
 
-            // Fixed/flex chips below the label
-            const chips = getDimChips(surface);
-            if (chips.length > 0) {
-                const chipRow = document.createElement('div');
-                chipRow.className = 'empty-dim-chips';
-                chips.forEach(c => {
-                    const chip = document.createElement('span');
-                    chip.className = 'dim-chip dim-chip-' + c.kind;
-                    chip.textContent = c.text;
-                    chipRow.appendChild(chip);
-                });
-                card.appendChild(shape);
-                card.appendChild(label);
-                card.appendChild(chipRow);
-            } else {
-                card.appendChild(shape);
-                card.appendChild(label);
-            }
+            card.appendChild(shape);
+            card.appendChild(label);
 
             card.style.cursor = 'pointer';
             card.addEventListener('click', function () { openDetailModal(surface); });
