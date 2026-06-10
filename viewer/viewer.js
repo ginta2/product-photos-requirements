@@ -1,5 +1,6 @@
 (function () {
-    const SURFACES_PATH = '../surfaces.md';
+    const SURFACES_PATH = 'surfaces.md';
+    const SURFACES_PATH_FALLBACK = '../surfaces.md';
 
     const uploadBtn = document.getElementById('upload-btn');
     const modalOverlay = document.getElementById('modal-overlay');
@@ -1227,25 +1228,31 @@
     }
 
     // Load surfaces
+    function loadSurfaces(md) {
+        surfaces = parseSurfacesTable(md);
+        updateSourceIndicator();
+        applySimView();
+        renderEmptyState();
+        renderTiles();
+        renderSpecsTable();
+        updateContextImages();
+    }
     fetch(SURFACES_PATH)
-        .then(r => r.text())
-        .then(md => {
-            surfaces = parseSurfacesTable(md);
-            updateSourceIndicator();
-            applySimView();
-            renderEmptyState();
-            renderTiles();
-            renderSpecsTable();
-            updateContextImages();
-        })
-        .catch(() => {
-            surfaces = getFallbackSurfaces();
-            updateSourceIndicator();
-            applySimView();
-            renderEmptyState();
-            renderTiles();
-            renderSpecsTable();
-            updateContextImages();
+        .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+        .then(loadSurfaces)
+        .catch(function() {
+            fetch(SURFACES_PATH_FALLBACK)
+                .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+                .then(loadSurfaces)
+                .catch(function() {
+                    surfaces = getFallbackSurfaces();
+                    updateSourceIndicator();
+                    applySimView();
+                    renderEmptyState();
+                    renderTiles();
+                    renderSpecsTable();
+                    updateContextImages();
+                });
         });
 
     function getFallbackSurfaces() {
