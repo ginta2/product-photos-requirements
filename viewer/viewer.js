@@ -30,8 +30,8 @@
 
     let surfaces = [];
     let imageUrl = null;
-    let activeFilter = 'all';
-    let specsFilter = 'all';
+    let activeFilter = 'mobile-rn';
+    let specsFilter = 'mobile-rn';
     let deviceWidth = 390;
     let simView = 'list'; // 'grid' | 'list'
 
@@ -312,46 +312,63 @@
         return formatRatioInfo(r, surface).pill;
     }
 
+    function parseResolutionWidth(resolution) {
+        if (!resolution || resolution.toLowerCase() === 'dynamic') return null;
+        // "160w × 240h" pattern
+        var wMatch = resolution.match(/(\d+)w/);
+        if (wMatch) return parseInt(wMatch[1]);
+        // "~350×200pt", "768×432", "56×56pt", "164×246" — first number is width
+        var dimMatch = resolution.match(/~?(\d+)\s*[×x]\s*\d+/);
+        if (dimMatch) return parseInt(dimMatch[1]);
+        return null;
+    }
+
     function getTileWidth(surface) {
         var fd = (surface.fixedDim || '').toLowerCase();
         var fl = (surface.flexDim || '').toLowerCase();
-        if (fd === 'both') {
-            // Scale tile to actual production size — parse width from resolution string
-            // (e.g. "56×56pt" → 40px, "164×246" → 118px, "200×128" → 144px).
-            // All values scaled relative to 390pt mobile reference → 280px display max.
-            var resMatch = (surface.resolution || '').match(/(\d+)\s*(?:[×x]|w\b)/);
-            if (resMatch) {
-                var actualW = parseInt(resMatch[1]);
-                var scaled = Math.round((actualW / 390) * 280);
-                return Math.max(36, Math.min(280, scaled));
-            }
+        var res = surface.resolution || '';
+
+        // --- Full-bleed: always full display width ---
+        if (fd === 'width=full-bleed' || fl === 'width=full-bleed') {
             return 280;
         }
-        // Scale if either dimension is container/screen-relative:
-        //   - fl matches explicit flexible-width patterns (including 'both (carousel)' variants)
-        //   - fd is full-bleed (width locked to device, e.g. parallax headers)
-        //   - fd references screen width (e.g. 'width=2/3 screen')
-        //   - flexDim carries a numeric range (e.g. '300–680px')
-        // Breakpoint-snap: flexDim encodes two fixed sizes at breakpoints (e.g. '72–90px (breakpoints)')
-        // Breakpoint-snap: normalize so the larger breakpoint = 280 display px,
-        // smaller = proportionally reduced. Avoids rendering literal tiny px values.
+
+        // --- Breakpoint-snapped thumbnails (e.g. Cart web: 72–90px) ---
         var bpMatch = fl.match(/(\d+)[–\-](\d+)px.*breakpoint/i);
         if (bpMatch) {
             var bpSmall = parseInt(bpMatch[1]);
             var bpLarge = parseInt(bpMatch[2]);
-            // Use a fixed small display size so the card stays full-width but the
-            // image is visibly smaller than a full recipe card, communicating its true thumbnail scale.
             var displayLarge = 100;
             var displaySmall = Math.round((bpSmall / bpLarge) * displayLarge);
             return deviceWidth >= 768 ? displayLarge : displaySmall;
         }
-        var flexWidthRelative = fl === 'width=container' || fl === 'width=full-bleed' || fl.startsWith('both') || parseFlexRange(surface.flexDim);
-        var fixedWidthRelative = fd === 'width=full-bleed' || fd.includes('screen');
-        if (flexWidthRelative || fixedWidthRelative) {
-            // Scale relative to platform max: mobile max=430pt, web max=1440px
+
+        // --- Try to extract actual width from resolution string ---
+        var actualW = parseResolutionWidth(res);
+        if (actualW) {
+            var ref = (surface.platform || '').toLowerCase().includes('web') ? 1440 : deviceWidth;
+            var scaled = Math.round((actualW / ref) * 280);
+            return Math.max(36, Math.min(280, scaled));
+        }
+
+        // --- Container-fill (fluid width, fixed height) without parseable width: full display width ---
+        if ((fl === 'width=container' || fl.includes('container')) && fd.includes('h=')) {
+            return 280;
+        }
+
+        // --- "dynamic" resolution with flexDim=both: medium carousel card ---
+        // These are cards whose width scales with container but have no explicit px value.
+        // Estimate ~40% of device width to distinguish from full-width cards.
+        if (res.toLowerCase() === 'dynamic' && fl.startsWith('both')) {
+            return Math.round(0.4 * 280);
+        }
+
+        // --- Flexible-range width (e.g. "300–680px") ---
+        if (parseFlexRange(surface.flexDim)) {
             var maxRef = deviceWidth >= 500 ? 1440 : 430;
             return Math.min(280, Math.round((deviceWidth / maxRef) * 280));
         }
+
         return 280;
     }
 
@@ -964,20 +981,21 @@
     }
 
     function updateSourceIndicator() {
-        var el = document.getElementById('source-indicator');
-        if (!el) return;
+        var ids = ['source-indicator-global'];
 
         if (!sourceWidth || !sourceHeight || !imageUrl) {
-            el.classList.remove('hidden');
-            el.classList.add('source-indicator--default');
-            el.innerHTML = '<span class="source-indicator-ratio">3:2</span>'
-                + '<span class="source-indicator-dims">1200×800</span>'
-                + '<span class="source-indicator-orientation">LANDSCAPE</span>'
-                + '<span class="source-indicator-default-tag">default</span>';
+            ids.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove('hidden');
+                el.classList.add('source-indicator--default');
+                el.innerHTML = '<span class="source-indicator-ratio">3:2</span>'
+                    + '<span class="source-indicator-dims">1200×800</span>'
+                    + '<span class="source-indicator-orientation">LANDSCAPE</span>'
+                    + '<span class="source-indicator-default-tag">default</span>';
+            });
             return;
         }
-
-        el.classList.remove('source-indicator--default');
 
         var ratioLabel = '';
         for (var i = 0; i < STANDARD_RATIOS.length; i++) {
@@ -993,21 +1011,7 @@
         var orientation = getRatioOrientation(sourceRatio);
         var isNotDefault = Math.abs(sourceRatio - DEFAULT_SOURCE_RATIO) >= 0.03;
 
-        var html = '<img class="source-indicator-thumb" src="' + imageUrl + '" alt="Source photo">';
-        html += '<span class="source-indicator-ratio">' + ratioLabel + '</span>';
-        html += '<span class="source-indicator-dims">' + sourceWidth + '×' + sourceHeight + '</span>';
-        html += '<span class="source-indicator-orientation">' + orientation + '</span>';
-
-        if (isNotDefault) {
-            html += '<span class="source-indicator-warning" title="Recommended shooting format is 3:2. Loss values adjusted to your actual source.">Not 3:2</span>';
-        }
-
-        html += '<button class="source-indicator-close" title="Remove photo">×</button>';
-
-        el.innerHTML = html;
-        el.classList.remove('hidden');
-
-        el.querySelector('.source-indicator-close').onclick = function () {
+        function clearPhoto() {
             imageUrl = '';
             sourceWidth = null;
             sourceHeight = null;
@@ -1018,7 +1022,29 @@
             renderEmptyState();
             renderSpecsTable();
             updateContextImages();
-        };
+        }
+
+        ids.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('source-indicator--default');
+
+            var html = '<img class="source-indicator-thumb" src="' + imageUrl + '" alt="Source photo">';
+            html += '<span class="source-indicator-ratio">' + ratioLabel + '</span>';
+            html += '<span class="source-indicator-dims">' + sourceWidth + '×' + sourceHeight + '</span>';
+            html += '<span class="source-indicator-orientation">' + orientation + '</span>';
+
+            if (isNotDefault) {
+                html += '<span class="source-indicator-warning" title="Recommended shooting format is 3:2. Loss values adjusted to your actual source.">Not 3:2</span>';
+            }
+
+            html += '<button class="source-indicator-close" title="Remove photo">×</button>';
+
+            el.innerHTML = html;
+            el.classList.remove('hidden');
+
+            el.querySelector('.source-indicator-close').onclick = clearPhoto;
+        });
     }
 
     function openModal() {

@@ -21,13 +21,16 @@
             <h1>Crop Viewer</h1>
             <p class="subtitle">See how source photos crop across production surfaces — and which formats to shoot</p>
         </div>
-        <button id="upload-btn" class="btn-upload">Upload Photo</button>
+        <div class="header-right">
+            <span id="source-indicator-global" class="source-indicator hidden"></span>
+            <button id="upload-btn" class="btn-upload">Upload Photo</button>
+        </div>
     </header>
 
     <nav id="main-nav">
-        <button class="nav-tab active" data-view="simulator">Simulator</button>
+        <button class="nav-tab active" data-view="context">Key Placements</button>
+        <button class="nav-tab" data-view="simulator">All Sizes</button>
         <button class="nav-tab" data-view="specs">Specs</button>
-        <button class="nav-tab" data-view="context">Photo Context</button>
         <button class="nav-tab" data-view="recommendation">Recommendation</button>
     </nav>
 
@@ -56,16 +59,14 @@
     </div>
 
     <!-- VIEW: Simulator -->
-    <section id="view-simulator">
+    <section id="view-simulator" class="hidden">
         <div id="filter-bar">
             <div class="filter-bar-row">
                 <div class="tabs" id="platform-tabs">
-                    <button class="tab active" data-filter="all">All</button>
+                    <button class="tab active" data-filter="mobile-rn">Mobile</button>
                     <button class="tab" data-filter="web">Web</button>
-                    <button class="tab" data-filter="mobile-rn">Mobile</button>
                 </div>
                 <div class="controls-right" id="controls">
-                    <span id="source-indicator" class="source-indicator hidden"></span>
                     <div class="view-toggle" id="view-toggle">
                         <button class="view-toggle-btn" data-view="grid" title="Grid view">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0" y="0" width="6" height="6" rx="1" fill="currentColor"/><rect x="8" y="0" width="6" height="6" rx="1" fill="currentColor"/><rect x="0" y="8" width="6" height="6" rx="1" fill="currentColor"/><rect x="8" y="8" width="6" height="6" rx="1" fill="currentColor"/></svg>
@@ -138,9 +139,8 @@
             <h2 class="specs-heading">Specifications</h2>
             <div id="specs-filter-bar">
                 <div class="tabs" id="specs-tabs">
-                    <button class="tab active" data-filter="all">All</button>
+                    <button class="tab active" data-filter="mobile-rn">Mobile</button>
                     <button class="tab" data-filter="web">Web</button>
-                    <button class="tab" data-filter="mobile-rn">Mobile</button>
                 </div>
                 <span class="specs-device-indicator" id="specs-device-indicator">@ 390pt</span>
             </div>
@@ -149,7 +149,7 @@
     </section>
 
     <!-- VIEW: Photo Context -->
-    <section id="view-context" class="hidden">
+    <section id="view-context">
         <p class="context-heading">See where your photo lives in the actual product — same image, different surfaces.</p>
 
         <div class="mockups-grid">
